@@ -89,6 +89,9 @@ export default function DoctorSelection() {
   const navigate = useNavigate();
   const [selectedId, setSelectedId] = useState("rossi");
   const [showMap, setShowMap] = useState(true);
+  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedTime, setSelectedTime] = useState("");
+  const [showErrors, setShowErrors] = useState(false);
 
   const selected = useMemo(() => doctors.find((d) => d.id === selectedId) ?? doctors[0], [selectedId]);
 
@@ -187,6 +190,79 @@ export default function DoctorSelection() {
               }}
               sx={{ mb: 3 }}
             />
+
+            {/* Seleziona data e ora */}
+            <Box
+              sx={{
+                border: "1px solid #dfe4ed",
+                borderRadius: 3,
+                p: { xs: 2, md: 2.5 },
+                mb: 3,
+              }}
+            >
+              <Typography fontWeight={700} sx={{ color: "#1e2f53", mb: 1 }}>
+                Seleziona data e ora
+              </Typography>
+              <Typography sx={{ color: "#4c5975", mb: 2 }}>
+                Scegli una data, poi seleziona uno degli orari disponibili del medico scelto.
+              </Typography>
+
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={4}>
+                  <TextField
+                    fullWidth
+                    type="date"
+                    label="Data *"
+                    InputLabelProps={{ shrink: true }}
+                    value={selectedDate}
+                    onChange={(e) => {
+                      setSelectedDate(e.target.value);
+                      setSelectedTime("");
+                    }}
+                    error={showErrors && !selectedDate}
+                    helperText={showErrors && !selectedDate ? "Campo obbligatorio" : ""}
+                  />
+                </Grid>
+
+                <Grid item xs={12} md={8}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: 1,
+                      alignItems: "flex-start",
+                    }}
+                  >
+                    {selectedDate ? (
+                      doctorSlots[selected.id].map((slot) => {
+                        const active = selectedTime === slot;
+                        return (
+                          <Button
+                            key={slot}
+                            variant={active ? "contained" : "outlined"}
+                            size="small"
+                            onClick={() => setSelectedTime(slot)}
+                            sx={{
+                              textTransform: "none",
+                              borderRadius: 2,
+                              minWidth: 88,
+                              backgroundColor: active ? "rgba(37,107,255,0.1)" : "white",
+                            }}
+                          >
+                            {slot}
+                          </Button>
+                        );
+                      })
+                    ) : (
+                      <Typography sx={{ color: "#6d7a94" }}>Seleziona prima una data per vedere gli orari disponibili.</Typography>
+                    )}
+                  </Box>
+                  {showErrors && selectedDate && !selectedTime && (
+                    <Typography sx={{ color: "#d32f2f", mt: 0.5 }}>Campo obbligatorio: scegli un orario</Typography>
+                  )}
+                </Grid>
+              </Grid>
+            </Box>
 
             <Grid container spacing={3}>
               {showMap && (
@@ -312,7 +388,18 @@ export default function DoctorSelection() {
               <Typography sx={{ color: "#1e2f53" }}>
                 Hai selezionato: <strong>{selected.name}</strong>
               </Typography>
-              <Button variant="contained" sx={{ textTransform: "none", px: 3, py: 1.1, fontWeight: 700 }} disabled={!selectedId}>
+              <Button
+                variant="contained"
+                sx={{ textTransform: "none", px: 3, py: 1.1, fontWeight: 700 }}
+                disabled={!selectedId}
+                onClick={() => {
+                  if (!selectedDate || !selectedTime) {
+                    setShowErrors(true);
+                    return;
+                  }
+                  navigate("/consulto");
+                }}
+              >
                 Invia richiesta di consulto
               </Button>
             </Box>
@@ -332,7 +419,10 @@ function DoctorMap({
   selectedId: string;
   onSelect: (id: string) => void;
 }) {
-  const center = useMemo(() => doctors.find((d) => d.id === selectedId)?.position ?? [45.4668, 9.19], [selectedId]);
+  const center = useMemo<[number, number]>(
+    () => doctors.find((d) => d.id === selectedId)?.position ?? [45.4668, 9.19],
+    [selectedId]
+  );
 
   return (
     <MapContainer center={center} zoom={14} style={{ height: 420, width: "100%" }} scrollWheelZoom={false}>
