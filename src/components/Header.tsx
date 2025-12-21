@@ -18,7 +18,16 @@ export default function Header() {
     >
       <Container maxWidth="lg">
         <Toolbar sx={{ px: { xs: 0, md: 1 }, display: "flex", justifyContent: "space-between" }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1.5,
+              cursor: "pointer",
+              userSelect: "none"
+            }}
+            onClick={() => navigate("/")}
+          >
             <Box
               sx={{
                 width: 42,
@@ -44,14 +53,24 @@ export default function Header() {
             </Box>
           </Box>
 
-          <Button
-            variant="contained"
-            color="primary"
-            sx={{ textTransform: "none", fontWeight: 700, px: 3 }}
-            onClick={() => navigate("/questionario")}
-          >
-            Inizia Ora
-          </Button>
+          <Box sx={{ display: "flex", gap: 2 }}>
+            <Button
+              variant="outlined"
+              color="primary"
+              sx={{ textTransform: "none", fontWeight: 700, px: 3 }}
+              onClick={() => navigate("/my-account")}
+            >
+              My Account
+            </Button>
+            <Button
+              variant="contained"
+              color="primary"
+              sx={{ textTransform: "none", fontWeight: 700, px: 3 }}
+              onClick={() => navigate("/questionario")}
+            >
+              Inizia Ora
+            </Button>
+          </Box>
         </Toolbar>
       </Container>
     </AppBar>

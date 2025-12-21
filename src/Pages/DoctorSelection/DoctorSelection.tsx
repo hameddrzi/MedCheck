@@ -246,7 +246,14 @@ export default function DoctorSelection() {
                               textTransform: "none",
                               borderRadius: 2,
                               minWidth: 88,
-                              backgroundColor: active ? "rgba(37,107,255,0.1)" : "white",
+                              borderColor: active ? "#2e6bff" : "#b9c5db",
+                              color: active ? "white" : "#1e2f53",
+                              backgroundColor: active ? "#2e6bff" : "white",
+                              boxShadow: active ? "0 10px 18px rgba(46,107,255,0.25)" : "none",
+                              "&:hover": {
+                                backgroundColor: active ? "#255bdd" : "#f5f7fb",
+                                borderColor: "#2e6bff",
+                              },
                             }}
                           >
                             {slot}
@@ -397,6 +404,8 @@ export default function DoctorSelection() {
                     setShowErrors(true);
                     return;
                   }
+                  sessionStorage.setItem("consultoDate", selectedDate);
+                  sessionStorage.setItem("consultoTime", selectedTime);
                   navigate("/consulto");
                 }}
               >
@@ -466,3 +475,10 @@ function createMarkerIcon(active: boolean, available: boolean) {
     ">${"𐄁"}</div>`,
   });
 }
+
+const doctorSlots: Record<string, string[]> = {
+  rossi: ["09:00", "10:30", "12:00", "15:00", "16:30"],
+  bianchi: ["09:30", "11:00", "14:00", "15:30", "17:00"],
+  conti: ["10:00", "11:30", "13:30", "16:00"],
+  ferrari: ["09:00", "10:00", "11:00", "14:30", "16:30"],
+};

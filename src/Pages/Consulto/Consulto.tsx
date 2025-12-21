@@ -16,15 +16,9 @@ import ErrorOutlineRoundedIcon from "@mui/icons-material/ErrorOutlineRounded";
 import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
 import Header from "../../components/Header";
 import GridLegacy from "@mui/material/GridLegacy";
+import { useEffect, useMemo, useState } from "react";
 
 const steps = ["Questionario", "Selezione Medico", "Consulto"];
-
-const patientSummary = [
-  { label: "Età", value: "87 anni" },
-  { label: "Altezza", value: "170 cm" },
-  { label: "Peso", value: "79 kg" },
-  { label: "IMC", value: "27.3" },
-];
 
 const recommendations = [
   "Monitorare i sintomi nelle prossime 24 ore",
@@ -35,6 +29,35 @@ const recommendations = [
 
 export default function Consulto() {
   const responseReceived = true; // toggle to false to show waiting UI
+  const [replyText, setReplyText] = useState("Risposta del 9 dicembre alle ore 15:44");
+  const [patientNome, setPatientNome] = useState("Nome");
+  const [patientCognome, setPatientCognome] = useState("Cognome");
+
+  useEffect(() => {
+    const savedDate = sessionStorage.getItem("consultoDate");
+    const savedTime = sessionStorage.getItem("consultoTime");
+    if (savedDate && savedTime) {
+      const formatted = formatItalianDate(savedDate);
+      setReplyText(`Risposta del ${formatted} alle ore ${savedTime}`);
+    }
+
+    const savedNome = sessionStorage.getItem("patientNome");
+    const savedCognome = sessionStorage.getItem("patientCognome");
+    if (savedNome) setPatientNome(savedNome);
+    if (savedCognome) setPatientCognome(savedCognome);
+  }, []);
+
+  const patientSummary = useMemo(
+    () => [
+      { label: "Nome", value: patientNome },
+      { label: "Cognome", value: patientCognome },
+      { label: "Età", value: "87 anni" },
+      { label: "Altezza", value: "170 cm" },
+      { label: "Peso", value: "79 kg" },
+      { label: "IMC", value: "27.3" },
+    ],
+    [patientNome, patientCognome]
+  );
 
   return (
     <Box
@@ -124,7 +147,7 @@ export default function Consulto() {
                     fontWeight: 600,
                   }}
                 >
-                  Risposta del 9 dicembre alle ore 15:44
+                  {replyText}
                 </Typography>
               )}
             </Box>
@@ -323,4 +346,13 @@ function AlertNote() {
       </Box>
     </Box>
   );
+}
+
+function formatItalianDate(dateStr: string) {
+  const parsed = new Date(dateStr);
+  if (Number.isNaN(parsed.getTime())) return dateStr;
+  return parsed.toLocaleDateString("it-IT", {
+    day: "numeric",
+    month: "long",
+  });
 }

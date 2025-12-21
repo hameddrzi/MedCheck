@@ -36,8 +36,10 @@ const steps = ["Questionario", "Selezione Medico", "Consulto"];
 export default function Questionnaire() {
   const theme = useTheme();
   const navigate = useNavigate();
-  const [selectedSymptoms, setSelectedSymptoms] = useState<Set<string>>(new Set(["mal-di-testa", "febbre", "vertigini"]));
+  const [selectedSymptoms, setSelectedSymptoms] = useState<Set<string>>(new Set());
   const [formState, setFormState] = useState({
+    nome: "",
+    cognome: "",
     sesso: "",
     eta: "",
     altezza: "",
@@ -46,6 +48,7 @@ export default function Questionnaire() {
     durataSintomi: "",
   });
   const [showErrors, setShowErrors] = useState(false);
+  const inputRadiusSx = { "& .MuiOutlinedInput-root": { borderRadius: 2.5 } };
 
   const toggleSymptom = (id: string) => {
     setSelectedSymptoms((prev) => {
@@ -56,13 +59,22 @@ export default function Questionnaire() {
   };
 
   const requiredMissing =
-    !formState.sesso || !formState.eta || !formState.altezza || !formState.peso || !formState.attivita || !formState.durataSintomi;
+    !formState.nome ||
+    !formState.cognome ||
+    !formState.sesso ||
+    !formState.eta ||
+    !formState.altezza ||
+    !formState.peso ||
+    !formState.attivita ||
+    !formState.durataSintomi;
 
   const handleContinue = () => {
     if (requiredMissing) {
       setShowErrors(true);
       return;
     }
+    sessionStorage.setItem("patientNome", formState.nome);
+    sessionStorage.setItem("patientCognome", formState.cognome);
     navigate("/selezione-medico");
   };
 
@@ -118,12 +130,37 @@ export default function Questionnaire() {
           <SectionTitle icon={<LocalHospitalRoundedIcon />} title="Dati Personali" />
           <Grid container spacing={2.5} sx={{ mb: 3 }}>
             <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Nome *"
+                value={formState.nome}
+                onChange={(e) => setFormState((s) => ({ ...s, nome: e.target.value }))}
+                error={showErrors && !formState.nome}
+                helperText={showErrors && !formState.nome ? "Campo obbligatorio" : ""}
+                FormHelperTextProps={{ sx: { color: "#d32f2f" } }}
+                sx={inputRadiusSx}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Cognome *"
+                value={formState.cognome}
+                onChange={(e) => setFormState((s) => ({ ...s, cognome: e.target.value }))}
+                error={showErrors && !formState.cognome}
+                helperText={showErrors && !formState.cognome ? "Campo obbligatorio" : ""}
+                FormHelperTextProps={{ sx: { color: "#d32f2f" } }}
+                sx={inputRadiusSx}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
               <FormControl fullWidth error={showErrors && !formState.sesso}>
                 <InputLabel>Sesso *</InputLabel>
                 <Select
                   label="Sesso *"
                   value={formState.sesso}
                   onChange={(e) => setFormState((s) => ({ ...s, sesso: e.target.value }))}
+                  sx={inputRadiusSx}
                 >
                   <MenuItem value="m">Maschio</MenuItem>
                   <MenuItem value="f">Femmina</MenuItem>
@@ -144,6 +181,7 @@ export default function Questionnaire() {
                 error={showErrors && !formState.eta}
                 helperText={showErrors && !formState.eta ? "Campo obbligatorio" : ""}
                 FormHelperTextProps={{ sx: { color: "#d32f2f" } }}
+                sx={inputRadiusSx}
               />
             </Grid>
             <Grid item xs={12} md={6}>
@@ -156,6 +194,7 @@ export default function Questionnaire() {
                 error={showErrors && !formState.altezza}
                 helperText={showErrors && !formState.altezza ? "Campo obbligatorio" : ""}
                 FormHelperTextProps={{ sx: { color: "#d32f2f" } }}
+                sx={inputRadiusSx}
               />
             </Grid>
             <Grid item xs={12} md={6}>
@@ -168,6 +207,7 @@ export default function Questionnaire() {
                 error={showErrors && !formState.peso}
                 helperText={showErrors && !formState.peso ? "Campo obbligatorio" : ""}
                 FormHelperTextProps={{ sx: { color: "#d32f2f" } }}
+                sx={inputRadiusSx}
               />
             </Grid>
           </Grid>
@@ -181,6 +221,7 @@ export default function Questionnaire() {
               label="Livello di attività fisica *"
               value={formState.attivita}
               onChange={(e) => setFormState((s) => ({ ...s, attivita: e.target.value }))}
+              sx={inputRadiusSx}
             >
               <MenuItem value="">
                 <em>Seleziona...</em>
@@ -208,7 +249,7 @@ export default function Questionnaire() {
             minRows={2}
             label="Farmaci attualmente in uso"
             placeholder="Elencare i farmaci che sta assumendo..."
-            sx={{ mb: 4 }}
+            sx={{ mb: 4, ...inputRadiusSx }}
           />
 
           <Divider sx={{ mb: 3 }} />
@@ -219,10 +260,10 @@ export default function Questionnaire() {
           </Box>
           <Grid container spacing={2.5} sx={{ mb: 3 }}>
             <Grid item xs={12} md={6}>
-              <TextField fullWidth label="Pressione sistolica (se disponibile)" placeholder="Es. 120" />
+              <TextField fullWidth label="Pressione sistolica (se disponibile)" placeholder="Es. 120" sx={inputRadiusSx} />
             </Grid>
             <Grid item xs={12} md={6}>
-              <TextField fullWidth label="Pressione diastolica (se disponibile)" placeholder="Es. 80" />
+              <TextField fullWidth label="Pressione diastolica (se disponibile)" placeholder="Es. 80" sx={inputRadiusSx} />
             </Grid>
           </Grid>
 
@@ -273,7 +314,7 @@ export default function Questionnaire() {
             minRows={3}
             label="Descrizione dettagliata dei sintomi"
             placeholder="Descrivere quando sono iniziati i sintomi, intensità, eventuali fattori scatenanti..."
-            sx={{ mb: 3 }}
+            sx={{ mb: 3, ...inputRadiusSx }}
           />
 
           <FormControl fullWidth sx={{ mb: 4 }} error={showErrors && !formState.durataSintomi}>
@@ -282,6 +323,7 @@ export default function Questionnaire() {
               label="Da quanto tempo ha questi sintomi? *"
               value={formState.durataSintomi}
               onChange={(e) => setFormState((s) => ({ ...s, durataSintomi: e.target.value }))}
+              sx={inputRadiusSx}
             >
               <MenuItem value="">
                 <em>Seleziona...</em>
