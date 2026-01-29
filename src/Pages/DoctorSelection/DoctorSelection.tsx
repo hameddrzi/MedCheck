@@ -23,12 +23,14 @@ import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import Header from "../../components/Header";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { fetchDoctors } from "../../api/doctorsApi";
+import { assignDoctorToConsultation } from "../../api/consult";
 
 const steps = ["Questionario", "Selezione Medico", "Consulto"];
 
-type Doctor = {
+type DoctorCardData = {
   id: string;
   name: string;
   role: string;
@@ -38,62 +40,73 @@ type Doctor = {
   available: boolean;
   message?: string;
   position: [number, number];
+  slots: string[];
 };
-
-const doctors: Doctor[] = [
-  {
-    id: "rossi",
-    name: "Dr. Maria Rossi",
-    role: "Medicina Generale",
-    address: "Via Roma 15, Milano",
-    distanceKm: 0.8,
-    rating: 4.8,
-    available: true,
-    message: "Questo medico è attualmente disponibile e potrà rispondere al tuo consulto entro poche ore.",
-    position: [45.4668, 9.19],
-  },
-  {
-    id: "bianchi",
-    name: "Dr. Giuseppe Bianchi",
-    role: "Cardiologia",
-    address: "Corso Venezia 42, Milano",
-    distanceKm: 1.2,
-    rating: 4.9,
-    available: true,
-    message: "Questo medico è attualmente disponibile e potrà rispondere al tuo consulto entro poche ore.",
-    position: [45.4725, 9.2045],
-  },
-  {
-    id: "conti",
-    name: "Dr.ssa Elena Conti",
-    role: "Medicina Interna",
-    address: "Piazza Duomo 8, Milano",
-    distanceKm: 1.5,
-    rating: 4.7,
-    available: false,
-    position: [45.4639, 9.191],
-  },
-  {
-    id: "ferrari",
-    name: "Dr. Marco Ferrari",
-    role: "Geriatria",
-    address: "Via Torino 30, Milano",
-    distanceKm: 1.7,
-    rating: 4.6,
-    available: true,
-    position: [45.4578, 9.185],
-  },
-];
 
 export default function DoctorSelection() {
   const navigate = useNavigate();
-  const [selectedId, setSelectedId] = useState("rossi");
+  const [doctors, setDoctors] = useState<DoctorCardData[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showMap, setShowMap] = useState(true);
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
   const [showErrors, setShowErrors] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [submitLoading, setSubmitLoading] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const selected = useMemo(() => doctors.find((d) => d.id === selectedId) ?? doctors[0], [selectedId]);
+  useEffect(() => {
+    let active = true;
+    const loadDoctors = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const { doctors: apiDoctors } = await fetchDoctors({ size: 20 });
+        if (!active) return;
+        const normalized = normalizeDoctors(apiDoctors);
+        setDoctors(normalized);
+        setSelectedId(normalized[0]?.id ?? null);
+      } catch (err) {
+        if (active) {
+          setError("Errore nel caricamento dei medici. Riprova più tardi.");
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    loadDoctors();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const selected = useMemo(
+    () => doctors.find((d) => d.id === selectedId) ?? doctors[0],
+    [selectedId, doctors]
+  );
+
+  // Filter by search term (name/city/specialty)
+  const filteredDoctors = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return doctors;
+    return doctors.filter((doc) => {
+      const haystack = [doc.name, doc.role, doc.address].join(" ").toLowerCase();
+      return haystack.includes(term);
+    });
+  }, [doctors, searchTerm]);
+
+  // Keep selected doctor consistent with filtered list
+  useEffect(() => {
+    if (filteredDoctors.length === 0) {
+      setSelectedId(null);
+      return;
+    }
+    if (!selectedId || !filteredDoctors.some((d) => d.id === selectedId)) {
+      setSelectedId(filteredDoctors[0].id);
+    }
+  }, [filteredDoctors, selectedId]);
 
   return (
     <Box
@@ -178,7 +191,9 @@ export default function DoctorSelection() {
           <Box sx={{ p: { xs: 2.5, md: 3.5 } }}>
             <TextField
               fullWidth
-              placeholder="Milano"
+              placeholder="Cerca per città o nome..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               InputProps={{
                 startAdornment: <LocationOnOutlinedIcon sx={{ mr: 1, color: "#63708a" }} />,
                 endAdornment: (
@@ -233,8 +248,8 @@ export default function DoctorSelection() {
                       alignItems: "flex-start",
                     }}
                   >
-                    {selectedDate ? (
-                      doctorSlots[selected.id].map((slot) => {
+                    {selectedDate && selected ? (
+                      (selected.slots || []).map((slot) => {
                         const active = selectedTime === slot;
                         return (
                           <Button
@@ -274,35 +289,39 @@ export default function DoctorSelection() {
             <Grid container spacing={3}>
               {showMap && (
                 <Grid item xs={12} md={5}>
-                  <Box
-                    sx={{
-                      border: "1px solid #dfe4ed",
-                      borderRadius: 3,
-                      overflow: "hidden",
-                    }}
-                  >
-                    <DoctorMap doctors={doctors} selectedId={selected.id} onSelect={setSelectedId} />
-                  </Box>
+                <Box
+                  sx={{
+                    border: "1px solid #dfe4ed",
+                    borderRadius: 3,
+                    overflow: "hidden",
+                  }}
+                >
+                  <DoctorMap
+                    doctors={filteredDoctors}
+                    selectedId={selected?.id ?? null}
+                    onSelect={setSelectedId}
+                  />
+                </Box>
                 </Grid>
               )}
 
               <Grid item xs={12} md={showMap ? 7 : 12}>
                 <Box
                   sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    mb: 2,
-                    px: 0.5,
-                  }}
-                >
-                  <Typography sx={{ color: "#1e2f53", fontWeight: 600 }}>
-                    Trovati {doctors.length} medici nella zona di Milano
-                  </Typography>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <CircleIcon sx={{ color: "#1fb26b", fontSize: 12 }} />
-                    <Typography sx={{ color: "#1e2f53" }}>Disponibile ora</Typography>
-                  </Box>
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                mb: 2,
+                px: 0.5,
+              }}
+            >
+              <Typography sx={{ color: "#1e2f53", fontWeight: 600 }}>
+                {loading ? "Caricamento medici..." : `Trovati ${filteredDoctors.length} medici`}
+              </Typography>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <CircleIcon sx={{ color: "#1fb26b", fontSize: 12 }} />
+                <Typography sx={{ color: "#1e2f53" }}>Disponibile ora</Typography>
+              </Box>
                 </Box>
 
                 <Box
@@ -315,103 +334,156 @@ export default function DoctorSelection() {
                     gap: 2,
                   }}
                 >
-                  {doctors.map((doc) => {
-                    const active = selected.id === doc.id;
-                    return (
+              {error && (
+                <Typography sx={{ color: "#d32f2f", fontWeight: 600 }}>{error}</Typography>
+              )}
+              {(loading
+                ? (Array.from({ length: 3 }) as (DoctorCardData | null)[])
+                : (filteredDoctors as (DoctorCardData | null)[])
+              ).map((doc, idx) => {
+                if (!doc) {
+                  return (
+                    <Box
+                      key={idx}
+                      sx={{
+                        borderRadius: 3,
+                        border: "2px solid #dfe4ed",
+                        backgroundColor: "#f5f7fb",
+                        height: 120,
+                      }}
+                    />
+                  );
+                }
+                const active = selected?.id === doc.id;
+                return (
+                  <Box
+                    key={doc.id}
+                    role="button"
+                    onClick={() => setSelectedId(doc.id)}
+                    sx={{
+                      borderRadius: 3,
+                      border: `2px solid ${active ? "#256bff" : "#dfe4ed"}`,
+                      boxShadow: active ? "0px 12px 30px rgba(37,107,255,0.12)" : "0px 8px 20px rgba(0,0,0,0.04)",
+                      backgroundColor: active ? "rgba(37,107,255,0.06)" : "white",
+                      p: 2,
+                      cursor: "pointer",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
                       <Box
-                        key={doc.id}
-                        role="button"
-                        onClick={() => setSelectedId(doc.id)}
                         sx={{
-                          borderRadius: 3,
-                          border: `2px solid ${active ? "#256bff" : "#dfe4ed"}`,
-                          boxShadow: active ? "0px 12px 30px rgba(37,107,255,0.12)" : "0px 8px 20px rgba(0,0,0,0.04)",
-                          backgroundColor: active ? "rgba(37,107,255,0.06)" : "white",
-                          p: 2,
-                          cursor: "pointer",
-                          transition: "all 0.15s ease",
+                          width: 44,
+                          height: 44,
+                          borderRadius: "14px",
+                          backgroundColor: "#eef4ff",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#256bff",
+                          flexShrink: 0,
                         }}
                       >
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                          <Box
-                            sx={{
-                              width: 44,
-                              height: 44,
-                              borderRadius: "14px",
-                              backgroundColor: "#eef4ff",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              color: "#256bff",
-                              flexShrink: 0,
-                            }}
-                          >
-                            <LocalHospitalRoundedIcon />
-                          </Box>
-                          <Box sx={{ flex: 1 }}>
-                            <Typography fontWeight={800} sx={{ color: "#1e2f53" }}>
-                              {doc.name}
-                            </Typography>
-                            <Typography sx={{ color: "#5a6782" }}>{doc.role}</Typography>
-                            <Box sx={{ display: "flex", alignItems: "center", gap: 1, color: "#6d7a94", mt: 0.5 }}>
-                              <PlaceRoundedIcon fontSize="small" />
-                              <Typography sx={{ color: "#6d7a94" }}>
-                                {doc.address} • {doc.distanceKm} km
-                              </Typography>
-                            </Box>
-                            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mt: 0.5 }}>
-                              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                                <StarRoundedIcon sx={{ fontSize: 18, color: "#f7b500" }} />
-                                <Typography sx={{ color: "#1e2f53", fontWeight: 600 }}>{doc.rating.toFixed(1)}</Typography>
-                              </Box>
-                              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, color: doc.available ? "#1fb26b" : "#9aa4b5" }}>
-                                <CircleIcon sx={{ fontSize: 10 }} />
-                                <Typography>{doc.available ? "Disponibile" : "Non disponibile"}</Typography>
-                              </Box>
-                            </Box>
-                          </Box>
-                          <CheckCircleOutlineRoundedIcon
-                            sx={{
-                              color: active ? "#256bff" : "#d0d6e3",
-                              fontSize: 26,
-                            }}
-                          />
-                        </Box>
-
-                        {doc.message && (
-                          <>
-                            <Divider sx={{ my: 1.5 }} />
-                            <Typography sx={{ color: "#4c5975" }}>{doc.message}</Typography>
-                          </>
-                        )}
+                        <LocalHospitalRoundedIcon />
                       </Box>
-                    );
-                  })}
+                      <Box sx={{ flex: 1 }}>
+                        <Typography fontWeight={800} sx={{ color: "#1e2f53" }}>
+                          {doc.name}
+                        </Typography>
+                        <Typography sx={{ color: "#5a6782" }}>{doc.role}</Typography>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, color: "#6d7a94", mt: 0.5 }}>
+                          <PlaceRoundedIcon fontSize="small" />
+                          <Typography sx={{ color: "#6d7a94" }}>
+                            {doc.address} • {doc.distanceKm} km
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mt: 0.5 }}>
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                            <StarRoundedIcon sx={{ fontSize: 18, color: "#f7b500" }} />
+                            <Typography sx={{ color: "#1e2f53", fontWeight: 600 }}>{doc.rating.toFixed(1)}</Typography>
+                          </Box>
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, color: doc.available ? "#1fb26b" : "#9aa4b5" }}>
+                            <CircleIcon sx={{ fontSize: 10 }} />
+                            <Typography>{doc.available ? "Disponibile" : "Non disponibile"}</Typography>
+                          </Box>
+                        </Box>
+                      </Box>
+                      <CheckCircleOutlineRoundedIcon
+                        sx={{
+                          color: active ? "#256bff" : "#d0d6e3",
+                          fontSize: 26,
+                        }}
+                      />
+                    </Box>
+
+                    {doc.message && (
+                      <>
+                        <Divider sx={{ my: 1.5 }} />
+                        <Typography sx={{ color: "#4c5975" }}>{doc.message}</Typography>
+                      </>
+                    )}
+                  </Box>
+                );
+              })}
                 </Box>
               </Grid>
             </Grid>
 
             <Box sx={{ mt: 3, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 2 }}>
               <Typography sx={{ color: "#1e2f53" }}>
-                Hai selezionato: <strong>{selected.name}</strong>
+                Hai selezionato: <strong>{selected ? selected.name : "Nessun medico"}</strong>
               </Typography>
               <Button
                 variant="contained"
                 sx={{ textTransform: "none", px: 3, py: 1.1, fontWeight: 700 }}
-                disabled={!selectedId}
-                onClick={() => {
+                disabled={!selectedId || submitLoading}
+                onClick={async () => {
                   if (!selectedDate || !selectedTime) {
                     setShowErrors(true);
                     return;
                   }
-                  sessionStorage.setItem("consultoDate", selectedDate);
-                  sessionStorage.setItem("consultoTime", selectedTime);
-                  navigate("/consulto");
+                  setSubmitError(null);
+                  setSubmitLoading(true);
+                  try {
+                    const stored = sessionStorage.getItem("consultationResponse");
+                    const parsed = stored ? JSON.parse(stored) : null;
+                    const consultationId = parsed?.id;
+                    if (!consultationId) {
+                      throw new Error("Nessun consultationId disponibile. Completa prima il questionario.");
+                    }
+
+                    if (!selected) {
+                      throw new Error("Nessun medico selezionato.");
+                    }
+
+                    await assignDoctorToConsultation(Number(consultationId), {
+                      doctorId: Number(selected.id),
+                      appointmentDate: selectedDate,
+                      appointmentTime: selectedTime,
+                    });
+
+                    sessionStorage.setItem("consultoDate", selectedDate);
+                    sessionStorage.setItem("consultoTime", selectedTime);
+                    sessionStorage.setItem("consultoDoctorId", String(selected.id));
+                    sessionStorage.setItem("consultoDoctorName", selected.name);
+                    sessionStorage.setItem("consultoDoctorSpecialty", selected.role || "");
+                    sessionStorage.setItem("consultoDoctorAddress", selected.address || "");
+                    navigate("/consulto");
+                  } catch (err) {
+                    setSubmitError("Errore nel salvataggio dell'appuntamento. Riprova.");
+                  } finally {
+                    setSubmitLoading(false);
+                  }
                 }}
               >
-                Invia richiesta di consulto
+                {submitLoading ? "Invio in corso..." : "Invia richiesta di consulto"}
               </Button>
             </Box>
+            {submitError && (
+              <Typography sx={{ color: "#d32f2f", mt: 1, fontWeight: 600 }}>
+                {submitError}
+              </Typography>
+            )}
           </Box>
         </Box>
       </Container>
@@ -424,13 +496,13 @@ function DoctorMap({
   selectedId,
   onSelect,
 }: {
-  doctors: Doctor[];
-  selectedId: string;
+  doctors: DoctorCardData[];
+  selectedId: string | null;
   onSelect: (id: string) => void;
 }) {
   const center = useMemo<[number, number]>(
     () => doctors.find((d) => d.id === selectedId)?.position ?? [45.4668, 9.19],
-    [selectedId]
+    [selectedId, doctors]
   );
 
   return (
@@ -482,3 +554,37 @@ const doctorSlots: Record<string, string[]> = {
   conti: ["10:00", "11:30", "13:30", "16:00"],
   ferrari: ["09:00", "10:00", "11:00", "14:30", "16:30"],
 };
+
+function normalizeDoctors(apiDoctors: any[]): DoctorCardData[] {
+  const cityCenters: Record<string, [number, number]> = {
+    milano: [45.4642, 9.19],
+    roma: [41.9028, 12.4964],
+    napoli: [40.8518, 14.2681],
+    torino: [45.0703, 7.6869],
+    bologna: [44.4949, 11.3426],
+    firenze: [43.7696, 11.2558],
+  };
+  const fallbackSlots = ["09:00", "11:00", "14:00", "16:00"];
+
+  return apiDoctors.map((doc, idx) => {
+    const name = doc.fullName || `${doc.firstName ?? ""} ${doc.lastName ?? ""}`.trim() || "Medico";
+    const id = String(doc.id ?? idx);
+    const cityKey = (doc.city || "").toString().toLowerCase();
+    const baseCenter = cityCenters[cityKey] ?? cityCenters.milano;
+    const offsetLat = baseCenter[0] + 0.02 * Math.cos(idx);
+    const offsetLng = baseCenter[1] + 0.02 * Math.sin(idx);
+
+    return {
+      id,
+      name,
+      role: doc.specialty ?? "",
+      address: [doc.address, doc.city].filter(Boolean).join(", "),
+      distanceKm: Number((0.8 + (idx % 4) * 0.6).toFixed(1)),
+      rating: Number(doc.rating ?? 0),
+      available: true,
+      message: "Questo medico è attualmente disponibile e potrà rispondere al tuo consulto entro poche ore.",
+      position: [offsetLat, offsetLng],
+      slots: doctorSlots[id] ?? fallbackSlots,
+    };
+  });
+}

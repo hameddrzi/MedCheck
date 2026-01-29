@@ -17,6 +17,8 @@ import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
 import Header from "../../components/Header";
 import GridLegacy from "@mui/material/GridLegacy";
 import { useEffect, useMemo, useState } from "react";
+import { assignDoctorToConsultation, getConsultationById } from "../../api/consult";
+import { useNavigate } from "react-router-dom";
 
 const steps = ["Questionario", "Selezione Medico", "Consulto"];
 
@@ -32,6 +34,19 @@ export default function Consulto() {
   const [replyText, setReplyText] = useState("Risposta del 9 dicembre alle ore 15:44");
   const [patientNome, setPatientNome] = useState("Nome");
   const [patientCognome, setPatientCognome] = useState("Cognome");
+  const [doctorName, setDoctorName] = useState("Medico Selezionato");
+  const [doctorSpecialty, setDoctorSpecialty] = useState("Specialità");
+  const [doctorAddress, setDoctorAddress] = useState("Indirizzo");
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submissionSuccess, setSubmissionSuccess] = useState(false);
+  const [consultationId, setConsultationId] = useState<number | null>(null);
+  const [detailsError, setDetailsError] = useState<string | null>(null);
+  const navigate = useNavigate();
+
+  const [patientEta, setPatientEta] = useState("");
+  const [patientAltezza, setPatientAltezza] = useState("");
+  const [patientPeso, setPatientPeso] = useState("");
 
   useEffect(() => {
     const savedDate = sessionStorage.getItem("consultoDate");
@@ -43,21 +58,112 @@ export default function Consulto() {
 
     const savedNome = sessionStorage.getItem("patientNome");
     const savedCognome = sessionStorage.getItem("patientCognome");
+    const savedEta = sessionStorage.getItem("patientEta");
+    const savedAltezza = sessionStorage.getItem("patientAltezza");
+    const savedPeso = sessionStorage.getItem("patientPeso");
+    const savedDoctorName = sessionStorage.getItem("consultoDoctorName");
+    const savedDoctorSpecialty = sessionStorage.getItem("consultoDoctorSpecialty");
+    const savedDoctorAddress = sessionStorage.getItem("consultoDoctorAddress");
+    const savedConsultation = sessionStorage.getItem("consultationResponse");
+
     if (savedNome) setPatientNome(savedNome);
     if (savedCognome) setPatientCognome(savedCognome);
+    if (savedEta) setPatientEta(savedEta);
+    if (savedAltezza) setPatientAltezza(savedAltezza);
+    if (savedPeso) setPatientPeso(savedPeso);
+    if (savedDoctorName) setDoctorName(savedDoctorName);
+    if (savedDoctorSpecialty) setDoctorSpecialty(savedDoctorSpecialty);
+    if (savedDoctorAddress) setDoctorAddress(savedDoctorAddress);
+    if (savedConsultation) {
+      try {
+        const parsed = JSON.parse(savedConsultation);
+        if (parsed?.id) setConsultationId(Number(parsed.id));
+      } catch (e) {
+        // ignore parse errors
+      }
+    }
   }, []);
+
+  useEffect(() => {
+    const loadDetails = async () => {
+      if (!consultationId) return;
+      setDetailsError(null);
+      try {
+        const data = await getConsultationById(consultationId);
+        if (data.firstName) setPatientNome(data.firstName);
+        if (data.lastName) setPatientCognome(data.lastName);
+        if (data.age !== undefined) setPatientEta(String(data.age));
+        if (data.heightCm !== undefined) setPatientAltezza(String(data.heightCm));
+        if (data.weightKg !== undefined) setPatientPeso(String(data.weightKg));
+        if (data.doctor) {
+          const name = `${data.doctor.firstName ?? ""} ${data.doctor.lastName ?? ""}`.trim();
+          if (name) setDoctorName(name);
+          if (data.doctor.specialty) setDoctorSpecialty(data.doctor.specialty);
+          const addressStr = [data.doctor.address, data.doctor.city].filter(Boolean).join(", ");
+          if (addressStr) setDoctorAddress(addressStr);
+        }
+        if (data.appointmentDate && data.appointmentTime) {
+          const formatted = formatItalianDate(data.appointmentDate);
+          setReplyText(`Risposta del ${formatted} alle ore ${data.appointmentTime}`);
+        }
+      } catch (err) {
+        setDetailsError("Errore nel caricamento dei dettagli.");
+      }
+    };
+    loadDetails();
+  }, [consultationId]);
+
+  const imc = useMemo(() => {
+    if (!patientAltezza || !patientPeso) return "N/A";
+    const h = parseFloat(patientAltezza) / 100;
+    const w = parseFloat(patientPeso);
+    if (isNaN(h) || isNaN(w) || h === 0) return "N/A";
+    return (w / (h * h)).toFixed(1);
+  }, [patientAltezza, patientPeso]);
 
   const patientSummary = useMemo(
     () => [
       { label: "Nome", value: patientNome },
       { label: "Cognome", value: patientCognome },
-      { label: "Età", value: "87 anni" },
-      { label: "Altezza", value: "170 cm" },
-      { label: "Peso", value: "79 kg" },
-      { label: "IMC", value: "27.3" },
+      { label: "Età", value: patientEta ? `${patientEta} anni` : "-" },
+      { label: "Altezza", value: patientAltezza ? `${patientAltezza} cm` : "-" },
+      { label: "Peso", value: patientPeso ? `${patientPeso} kg` : "-" },
+      { label: "IMC", value: imc },
     ],
-    [patientNome, patientCognome]
+    [patientNome, patientCognome, patientEta, patientAltezza, patientPeso, imc]
   );
+
+  const handleSendRequest = async () => {
+    if (!consultationId) {
+      setSubmissionError("Nessun consultationId disponibile. Completa prima il questionario.");
+      return;
+    }
+
+    const storedDoctorId = sessionStorage.getItem("consultoDoctorId");
+    const storedDate = sessionStorage.getItem("consultoDate");
+    const storedTime = sessionStorage.getItem("consultoTime");
+
+    if (!storedDoctorId || !storedDate || !storedTime) {
+      setSubmissionError("Dati appuntamento mancanti. Seleziona medico e orario prima di inviare.");
+      return;
+    }
+
+    setSubmitting(true);
+    setSubmissionError(null);
+    setSubmissionSuccess(false);
+    try {
+      await assignDoctorToConsultation(Number(consultationId), {
+        doctorId: Number(storedDoctorId),
+        appointmentDate: storedDate,
+        appointmentTime: storedTime,
+      });
+      setSubmissionSuccess(true);
+    } catch (err) {
+      setSubmissionError("Errore nell'invio della richiesta. Riprova.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <Box
@@ -131,7 +237,7 @@ export default function Consulto() {
               </Typography>
               <Typography sx={{ color: "#3f4b67" }}>
                 {responseReceived
-                  ? "Risposta ricevuta da Dr. Giuseppe Bianchi"
+                  ? `Risposta ricevuta da ${doctorName}`
                   : "Il medico riceverà la tua richiesta e risponderà appena possibile"}
               </Typography>
               {responseReceived && (
@@ -175,10 +281,10 @@ export default function Consulto() {
                   </Box>
                   <Box>
                     <Typography fontWeight={800} sx={{ color: "#1e2f53" }}>
-                      Dr. Giuseppe Bianchi
+                      {doctorName}
                     </Typography>
-                    <Typography sx={{ color: "#5a6782" }}>Cardiologia</Typography>
-                    <Typography sx={{ color: "#6d7a94" }}>Corso Venezia 42, Milano</Typography>
+                    <Typography sx={{ color: "#5a6782" }}>{doctorSpecialty}</Typography>
+                    <Typography sx={{ color: "#6d7a94" }}>{doctorAddress}</Typography>
                   </Box>
                 </Box>
               </GridLegacy>
@@ -269,13 +375,37 @@ export default function Consulto() {
               flexWrap: "wrap",
             }}
           >
-            <Button variant="outlined" sx={{ textTransform: "none", fontWeight: 700, px: 3 }}>
+            <Button
+              variant="outlined"
+              sx={{ textTransform: "none", fontWeight: 700, px: 3 }}
+              onClick={() => navigate("/questionario")}
+            >
               Nuova consultazione
             </Button>
             {responseReceived && (
-              <Button variant="contained" sx={{ textTransform: "none", fontWeight: 700, px: 3 }}>
-                Scarica riepilogo PDF
+              <Button
+                variant="contained"
+                sx={{ textTransform: "none", fontWeight: 700, px: 3 }}
+                onClick={handleSendRequest}
+                disabled={submitting || submissionSuccess}
+              >
+                {submitting ? "Invio..." : submissionSuccess ? "Richiesta inviata" : "Invia la richiesta"}
               </Button>
+            )}
+            {submissionError && (
+              <Typography sx={{ color: "#d32f2f", width: "100%", textAlign: "right" }}>
+                {submissionError}
+              </Typography>
+            )}
+            {submissionSuccess && (
+              <Typography sx={{ color: "#1b8f5b", width: "100%", textAlign: "right", fontWeight: 700 }}>
+                Richiesta inviata con successo.
+              </Typography>
+            )}
+            {detailsError && (
+              <Typography sx={{ color: "#d32f2f", width: "100%", textAlign: "right" }}>
+                {detailsError}
+              </Typography>
             )}
           </Box>
         </Box>

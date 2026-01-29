@@ -28,27 +28,72 @@ import MonitorHeartRoundedIcon from "@mui/icons-material/MonitorHeartRounded";
 import CheckCircleOutlineRoundedIcon from "@mui/icons-material/CheckCircleOutlineRounded";
 import Header from "../../components/Header";
 import Grid from "@mui/material/GridLegacy";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { submitConsultation } from "../../api/consult";
+import { fetchUserProfile } from "../../api/dashboard";
+
+const initialFormState = {
+  nome: "",
+  cognome: "",
+  codiceFiscale: "",
+  sesso: "",
+  birthDate: "",
+  altezza: "",
+  peso: "",
+  attivita: "",
+  durataSintomi: "",
+  farmaci: "",
+  descrizioneSintomi: "",
+  pressioneSistolica: "",
+  pressioneDiastolica: "",
+};
+type FormState = typeof initialFormState;
 
 const steps = ["Questionario", "Selezione Medico", "Consulto"];
+
+import { useAuth } from "../../context/AuthContext";
 
 export default function Questionnaire() {
   const theme = useTheme();
   const navigate = useNavigate();
+  const { user: authUser, isAuthenticated } = useAuth(); // Use Auth Context
   const [selectedSymptoms, setSelectedSymptoms] = useState<Set<string>>(new Set());
-  const [formState, setFormState] = useState({
-    nome: "",
-    cognome: "",
-    sesso: "",
-    eta: "",
-    altezza: "",
-    peso: "",
-    attivita: "",
-    durataSintomi: "",
-  });
+  const [formState, setFormState] = useState<FormState>(initialFormState);
+  const [hasPastDiseases, setHasPastDiseases] = useState<boolean>(true);
+  const [hasNausea, setHasNausea] = useState<boolean>(true);
+  const [loading, setLoading] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [showErrors, setShowErrors] = useState(false);
+
+  // No need for separate prefilled state, we use isAuthenticated
   const inputRadiusSx = { "& .MuiOutlinedInput-root": { borderRadius: 2.5 } };
+
+  // Fields are locked if user is logged in
+  // Only lock: nome, cognome, codiceFiscale, birthDate, altezza
+  // Allow editing: sesso, peso
+  const lockedPersonalInfo = isAuthenticated;
+
+  useEffect(() => {
+    if (authUser) {
+      setFormState((s) => ({
+        ...s,
+        nome: authUser.firstName || s.nome,
+        cognome: authUser.lastName || s.cognome,
+        codiceFiscale: authUser.codiceFiscale || s.codiceFiscale,
+        birthDate: authUser.birthDate || s.birthDate,
+        altezza:
+          typeof authUser.heightCm === "number" && !Number.isNaN(authUser.heightCm)
+            ? String(authUser.heightCm)
+            : s.altezza,
+        peso:
+          typeof authUser.weightKg === "number" && !Number.isNaN(authUser.weightKg)
+            ? String(authUser.weightKg)
+            : s.peso,
+        sesso: authUser.gender ? mapGender(authUser.gender) : s.sesso,
+      }));
+    }
+  }, [authUser]);
 
   const toggleSymptom = (id: string) => {
     setSelectedSymptoms((prev) => {
@@ -61,8 +106,9 @@ export default function Questionnaire() {
   const requiredMissing =
     !formState.nome ||
     !formState.cognome ||
+    !formState.codiceFiscale ||
     !formState.sesso ||
-    !formState.eta ||
+    !formState.birthDate ||
     !formState.altezza ||
     !formState.peso ||
     !formState.attivita ||
@@ -73,9 +119,38 @@ export default function Questionnaire() {
       setShowErrors(true);
       return;
     }
-    sessionStorage.setItem("patientNome", formState.nome);
-    sessionStorage.setItem("patientCognome", formState.cognome);
-    navigate("/selezione-medico");
+    submit();
+  };
+
+  const submit = async () => {
+    setLoading(true);
+    setSubmitError(null);
+    try {
+      const payload = mapToPayload({
+        formState,
+        hasPastDiseases,
+        hasNausea,
+        selectedSymptoms,
+      });
+
+      const response = await submitConsultation(payload);
+
+      sessionStorage.setItem("consultationResponse", JSON.stringify(response || {}));
+      sessionStorage.setItem("patientNome", formState.nome);
+      sessionStorage.setItem("patientCognome", formState.cognome);
+      const computedAge = calculateAge(formState.birthDate);
+      if (computedAge !== null) {
+        sessionStorage.setItem("patientEta", String(computedAge));
+      }
+      sessionStorage.setItem("patientAltezza", formState.altezza);
+      sessionStorage.setItem("patientPeso", formState.peso);
+
+      navigate("/selezione-medico");
+    } catch (err) {
+      setSubmitError("Errore nell'invio del questionario. Riprova tra poco.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -135,6 +210,7 @@ export default function Questionnaire() {
                 label="Nome *"
                 value={formState.nome}
                 onChange={(e) => setFormState((s) => ({ ...s, nome: e.target.value }))}
+                disabled={lockedPersonalInfo}
                 error={showErrors && !formState.nome}
                 helperText={showErrors && !formState.nome ? "Campo obbligatorio" : ""}
                 FormHelperTextProps={{ sx: { color: "#d32f2f" } }}
@@ -147,8 +223,22 @@ export default function Questionnaire() {
                 label="Cognome *"
                 value={formState.cognome}
                 onChange={(e) => setFormState((s) => ({ ...s, cognome: e.target.value }))}
+                disabled={lockedPersonalInfo}
                 error={showErrors && !formState.cognome}
                 helperText={showErrors && !formState.cognome ? "Campo obbligatorio" : ""}
+                FormHelperTextProps={{ sx: { color: "#d32f2f" } }}
+                sx={inputRadiusSx}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Codice Fiscale *"
+                value={formState.codiceFiscale}
+                onChange={(e) => setFormState((s) => ({ ...s, codiceFiscale: e.target.value }))}
+                disabled={lockedPersonalInfo}
+                error={showErrors && !formState.codiceFiscale}
+                helperText={showErrors && !formState.codiceFiscale ? "Campo obbligatorio" : ""}
                 FormHelperTextProps={{ sx: { color: "#d32f2f" } }}
                 sx={inputRadiusSx}
               />
@@ -161,6 +251,7 @@ export default function Questionnaire() {
                   value={formState.sesso}
                   onChange={(e) => setFormState((s) => ({ ...s, sesso: e.target.value }))}
                   sx={inputRadiusSx}
+                  disabled={false}
                 >
                   <MenuItem value="m">Maschio</MenuItem>
                   <MenuItem value="f">Femmina</MenuItem>
@@ -174,12 +265,14 @@ export default function Questionnaire() {
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="Età *"
-                placeholder="Es. 65"
-                value={formState.eta}
-                onChange={(e) => setFormState((s) => ({ ...s, eta: e.target.value }))}
-                error={showErrors && !formState.eta}
-                helperText={showErrors && !formState.eta ? "Campo obbligatorio" : ""}
+                type="date"
+                label="Data di nascita *"
+                InputLabelProps={{ shrink: true }}
+                value={formState.birthDate}
+                onChange={(e) => setFormState((s) => ({ ...s, birthDate: e.target.value }))}
+                disabled={lockedPersonalInfo}
+                error={showErrors && !formState.birthDate}
+                helperText={showErrors && !formState.birthDate ? "Campo obbligatorio" : ""}
                 FormHelperTextProps={{ sx: { color: "#d32f2f" } }}
                 sx={inputRadiusSx}
               />
@@ -191,6 +284,7 @@ export default function Questionnaire() {
                 placeholder="Es. 170"
                 value={formState.altezza}
                 onChange={(e) => setFormState((s) => ({ ...s, altezza: e.target.value }))}
+                disabled={lockedPersonalInfo}
                 error={showErrors && !formState.altezza}
                 helperText={showErrors && !formState.altezza ? "Campo obbligatorio" : ""}
                 FormHelperTextProps={{ sx: { color: "#d32f2f" } }}
@@ -204,6 +298,7 @@ export default function Questionnaire() {
                 placeholder="Es. 70"
                 value={formState.peso}
                 onChange={(e) => setFormState((s) => ({ ...s, peso: e.target.value }))}
+                disabled={false}
                 error={showErrors && !formState.peso}
                 helperText={showErrors && !formState.peso ? "Campo obbligatorio" : ""}
                 FormHelperTextProps={{ sx: { color: "#d32f2f" } }}
@@ -241,7 +336,15 @@ export default function Questionnaire() {
 
           <SectionTitle icon={<MedicalInformationRoundedIcon />} title="Storia Clinica" />
           <Box sx={{ mb: 2 }}>
-            <FormControlLabel control={<Checkbox defaultChecked />} label="Ho una storia clinica di patologie pregresse" />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={hasPastDiseases}
+                  onChange={(e) => setHasPastDiseases(e.target.checked)}
+                />
+              }
+              label="Ho una storia clinica di patologie pregresse"
+            />
           </Box>
           <TextField
             fullWidth
@@ -249,6 +352,8 @@ export default function Questionnaire() {
             minRows={2}
             label="Farmaci attualmente in uso"
             placeholder="Elencare i farmaci che sta assumendo..."
+            value={formState.farmaci}
+            onChange={(e) => setFormState((s) => ({ ...s, farmaci: e.target.value }))}
             sx={{ mb: 4, ...inputRadiusSx }}
           />
 
@@ -256,14 +361,36 @@ export default function Questionnaire() {
 
           <SectionTitle icon={<FavoriteBorderRoundedIcon />} title="Sintomi Attuali" />
           <Box sx={{ mb: 2 }}>
-            <FormControlLabel control={<Checkbox defaultChecked />} label="Ho nausea o senso di malessere generale" />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={hasNausea}
+                  onChange={(e) => setHasNausea(e.target.checked)}
+                />
+              }
+              label="Ho nausea o senso di malessere generale"
+            />
           </Box>
           <Grid container spacing={2.5} sx={{ mb: 3 }}>
             <Grid item xs={12} md={6}>
-              <TextField fullWidth label="Pressione sistolica (se disponibile)" placeholder="Es. 120" sx={inputRadiusSx} />
+              <TextField
+                fullWidth
+                label="Pressione sistolica (se disponibile)"
+                placeholder="Es. 120"
+                value={formState.pressioneSistolica}
+                onChange={(e) => setFormState((s) => ({ ...s, pressioneSistolica: e.target.value }))}
+                sx={inputRadiusSx}
+              />
             </Grid>
             <Grid item xs={12} md={6}>
-              <TextField fullWidth label="Pressione diastolica (se disponibile)" placeholder="Es. 80" sx={inputRadiusSx} />
+              <TextField
+                fullWidth
+                label="Pressione diastolica (se disponibile)"
+                placeholder="Es. 80"
+                value={formState.pressioneDiastolica}
+                onChange={(e) => setFormState((s) => ({ ...s, pressioneDiastolica: e.target.value }))}
+                sx={inputRadiusSx}
+              />
             </Grid>
           </Grid>
 
@@ -314,6 +441,8 @@ export default function Questionnaire() {
             minRows={3}
             label="Descrizione dettagliata dei sintomi"
             placeholder="Descrivere quando sono iniziati i sintomi, intensità, eventuali fattori scatenanti..."
+            value={formState.descrizioneSintomi}
+            onChange={(e) => setFormState((s) => ({ ...s, descrizioneSintomi: e.target.value }))}
             sx={{ mb: 3, ...inputRadiusSx }}
           />
 
@@ -339,9 +468,20 @@ export default function Questionnaire() {
             )}
           </FormControl>
 
+          {submitError && (
+            <Typography sx={{ color: "#d32f2f", mb: 2, fontWeight: 600 }}>
+              {submitError}
+            </Typography>
+          )}
+
           <Box display="flex" justifyContent="flex-end">
-            <Button variant="contained" sx={{ px: 3, py: 1.2, fontWeight: 700 }} onClick={handleContinue}>
-              Continua alla selezione medico
+            <Button
+              variant="contained"
+              sx={{ px: 3, py: 1.2, fontWeight: 700 }}
+              onClick={handleContinue}
+              disabled={loading}
+            >
+              {loading ? "Invio in corso..." : "Continua alla selezione medico"}
             </Button>
           </Box>
         </Box>
@@ -380,3 +520,79 @@ const symptomOptions = [
   { id: "vertigini", label: "Vertigini", icon: <ErrorOutlineRoundedIcon /> },
   { id: "mancanza-respiro", label: "Mancanza di respiro", icon: <MonitorHeartRoundedIcon /> },
 ];
+
+function mapGender(gender?: string) {
+  if (!gender) return "";
+  const normalized = gender.toUpperCase().trim();
+  if (normalized === "MALE" || normalized === "M") return "m";
+  if (normalized === "FEMALE" || normalized === "F") return "f";
+  if (normalized === "OTHER" || normalized === "ALTRO") return "altro";
+  return "";
+}
+
+function mapToPayload({
+  formState,
+  hasPastDiseases,
+  hasNausea,
+  selectedSymptoms,
+}: {
+  formState: FormState;
+  hasPastDiseases: boolean;
+  hasNausea: boolean;
+  selectedSymptoms: Set<string>;
+}) {
+  const genderMap: Record<string, string> = {
+    m: "MALE",
+    f: "FEMALE",
+    altro: "OTHER",
+  };
+
+  const activityMap: Record<string, string> = {
+    sedentario: "SEDENTARIO",
+    leggera: "LEGGERA",
+    moderata: "MODERATA",
+    attiva: "ATTIVA",
+    "molto-attivo": "MOLTO_ATTIVO",
+  };
+
+  return {
+    firstName: formState.nome,
+    lastName: formState.cognome,
+    codiceFiscale: formState.codiceFiscale,
+    age: calculateAge(formState.birthDate) ?? 0,
+    gender: genderMap[formState.sesso] || formState.sesso,
+    heightCm: Number(formState.altezza),
+    weightKg: Number(formState.peso),
+    activityLevel: activityMap[formState.attivita] || formState.attivita,
+    hasPastDiseases,
+    currentMedications: formState.farmaci,
+    nausea: hasNausea,
+    headache: selectedSymptoms.has("mal-di-testa"),
+    fever: selectedSymptoms.has("febbre"),
+    dizziness: selectedSymptoms.has("vertigini"),
+    chestPain: selectedSymptoms.has("dolore-al-petto"),
+    fatigue: selectedSymptoms.has("stanchezza"),
+    shortnessOfBreath: selectedSymptoms.has("mancanza-respiro"),
+    systolicPressure: formState.pressioneSistolica
+      ? Number(formState.pressioneSistolica)
+      : undefined,
+    diastolicPressure: formState.pressioneDiastolica
+      ? Number(formState.pressioneDiastolica)
+      : undefined,
+    symptomsDescription: formState.descrizioneSintomi,
+    symptomsDuration: formState.durataSintomi,
+  };
+}
+
+function calculateAge(birthDate: string): number | null {
+  if (!birthDate) return null;
+  const birth = new Date(birthDate);
+  if (Number.isNaN(birth.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+    age--;
+  }
+  return age;
+}

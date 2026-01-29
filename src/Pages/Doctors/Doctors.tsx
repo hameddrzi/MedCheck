@@ -11,26 +11,61 @@ import {
 } from "@mui/material";
 import Grid from "@mui/material/GridLegacy";
 import SearchIcon from "@mui/icons-material/Search";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Header from "../../components/Header";
 import DoctorCard from "./DoctorCard";
-import { mockDoctors } from "./mockDoctors";
+import { fetchDoctors } from "../../api/doctorsApi";
+import type { Doctor } from "../../types/doctor";
 
 export default function Doctors() {
     const [searchTerm, setSearchTerm] = useState("");
     const [specialtyFilter, setSpecialtyFilter] = useState("all");
+    const [doctors, setDoctors] = useState<Doctor[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const loadDoctors = async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                const { doctors: fetchedDoctors } = await fetchDoctors({ size: 100 });
+                if (isMounted) {
+                    setDoctors(fetchedDoctors);
+                }
+            } catch (err) {
+                if (isMounted) {
+                    setError("Errore nel caricamento dei medici. Riprova più tardi.");
+                }
+            } finally {
+                if (isMounted) {
+                    setLoading(false);
+                }
+            }
+        };
+
+        loadDoctors();
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     // Get unique specialties
-    const specialties = Array.from(
-        new Set(mockDoctors.map((doctor) => doctor.specialty))
+    const specialties = useMemo(
+        () => Array.from(new Set(doctors.map((doctor) => doctor.specialty))),
+        [doctors]
     );
 
     // Filter doctors
-    const filteredDoctors = mockDoctors.filter((doctor) => {
+    const filteredDoctors = doctors.filter((doctor) => {
+        const loweredSearch = searchTerm.toLowerCase();
+        const fullName = `${doctor.firstName} ${doctor.lastName}`.toLowerCase();
         const matchesSearch =
-            doctor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            doctor.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            doctor.specialty.toLowerCase().includes(searchTerm.toLowerCase());
+            fullName.includes(loweredSearch) ||
+            doctor.city.toLowerCase().includes(loweredSearch) ||
+            doctor.specialty.toLowerCase().includes(loweredSearch);
 
         const matchesSpecialty =
             specialtyFilter === "all" || doctor.specialty === specialtyFilter;
@@ -130,21 +165,53 @@ export default function Doctors() {
                         variant="body2"
                         sx={{ mb: 3, color: "rgba(0,0,0,0.6)", fontWeight: 500 }}
                     >
-                        {filteredDoctors.length} medic{filteredDoctors.length === 1 ? "o" : "i"}{" "}
-                        trovat{filteredDoctors.length === 1 ? "o" : "i"}
+                        {loading
+                            ? "Caricamento medici..."
+                            : `${filteredDoctors.length} medic${
+                                  filteredDoctors.length === 1 ? "o" : "i"
+                              } trovat${filteredDoctors.length === 1 ? "o" : "i"}`}
                     </Typography>
 
+                    {error && (
+                        <Box
+                            sx={{
+                                mb: 3,
+                                p: 2,
+                                borderRadius: 2,
+                                backgroundColor: "rgba(244, 67, 54, 0.08)",
+                                color: "#c62828",
+                                fontWeight: 600,
+                            }}
+                        >
+                            {error}
+                        </Box>
+                    )}
+
                     {/* Doctors Grid */}
-                    <Grid container spacing={3}>
-                        {filteredDoctors.map((doctor) => (
-                            <Grid item xs={12} md={6} lg={4} key={doctor.id}>
-                                <DoctorCard doctor={doctor} />
-                            </Grid>
-                        ))}
+                    <Grid container spacing={3} sx={{ opacity: loading ? 0.6 : 1 }}>
+                        {loading
+                            ? Array.from({ length: 6 }).map((_, idx) => (
+                                  <Grid item xs={12} md={6} lg={4} key={idx}>
+                                      <Box
+                                          sx={{
+                                              height: "100%",
+                                              borderRadius: 3,
+                                              backgroundColor: "#f5f7fb",
+                                              boxShadow: "0px 4px 20px rgba(0,0,0,0.04)",
+                                              p: 3,
+                                          }}
+                                      />
+                                  </Grid>
+                              ))
+                            : filteredDoctors.map((doctor) => (
+                                  <Grid item xs={12} md={6} lg={4} key={doctor.id}>
+                                      <DoctorCard doctor={doctor} />
+                                  </Grid>
+                              ))}
                     </Grid>
 
                     {/* No Results */}
-                    {filteredDoctors.length === 0 && (
+                    {!loading && filteredDoctors.length === 0 && (
                         <Box
                             sx={{
                                 textAlign: "center",

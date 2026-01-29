@@ -5,7 +5,6 @@ import {
     Box,
     Rating,
     Chip,
-    Stack,
     Divider,
     Avatar,
 } from "@mui/material";
@@ -13,12 +12,18 @@ import LocationOnIcon from "@mui/icons-material/LocationOn";
 import PhoneIcon from "@mui/icons-material/Phone";
 import EmailIcon from "@mui/icons-material/Email";
 import type { Doctor } from "../../types/doctor";
+import DoctorReviews from "./DoctorReviews";
+
 
 interface DoctorCardProps {
     doctor: Doctor;
 }
 
 export default function DoctorCard({ doctor }: DoctorCardProps) {
+    const avatarLetter =
+        doctor.lastName?.[0] || doctor.firstName?.[0] || doctor.fullName?.[0] || "M";
+    const hasCompletedVisit = false; // placeholder until real visit validation is wired
+
     return (
         <Card
             sx={{
@@ -46,11 +51,11 @@ export default function DoctorCard({ doctor }: DoctorCardProps) {
                             fontWeight: 700,
                         }}
                     >
-                        {doctor.name.split(" ")[1]?.[0] || doctor.name[0]}
+                        {avatarLetter}
                     </Avatar>
                     <Box sx={{ ml: 2, flexGrow: 1 }}>
                         <Typography variant="h6" fontWeight={700} sx={{ mb: 0.5 }}>
-                            {doctor.name}
+                            {doctor.firstName} {doctor.lastName}
                         </Typography>
                         <Chip
                             label={doctor.specialty}
@@ -74,7 +79,7 @@ export default function DoctorCard({ doctor }: DoctorCardProps) {
                         {doctor.rating.toFixed(1)}
                     </Typography>
                     <Typography variant="body2" sx={{ ml: 0.5, color: "rgba(0,0,0,0.6)" }}>
-                        ({doctor.totalReviews} recensioni)
+                        ({doctor.reviewsCount} recensioni)
                     </Typography>
                 </Box>
 
@@ -118,39 +123,10 @@ export default function DoctorCard({ doctor }: DoctorCardProps) {
 
                 <Divider sx={{ my: 2 }} />
 
-                {/* Reviews */}
-                <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1.5 }}>
-                    Recensioni Recenti
-                </Typography>
-
-                <Stack spacing={2}>
-                    {doctor.reviews.slice(0, 2).map((review) => (
-                        <Box key={review.id}>
-                            <Box sx={{ display: "flex", alignItems: "center", mb: 0.5 }}>
-                                <Typography variant="body2" fontWeight={600} sx={{ mr: 1 }}>
-                                    {review.patientName}
-                                </Typography>
-                                <Rating value={review.rating} size="small" readOnly />
-                            </Box>
-                            <Typography
-                                variant="body2"
-                                sx={{
-                                    color: "rgba(0,0,0,0.7)",
-                                    fontStyle: "italic",
-                                    lineHeight: 1.5,
-                                }}
-                            >
-                                "{review.comment}"
-                            </Typography>
-                            <Typography
-                                variant="caption"
-                                sx={{ color: "rgba(0,0,0,0.5)", mt: 0.5, display: "block" }}
-                            >
-                                {new Date(review.date).toLocaleDateString("it-IT")}
-                            </Typography>
-                        </Box>
-                    ))}
-                </Stack>
+                <DoctorReviews
+                    doctorId={doctor.id}
+                    canReview={hasCompletedVisit}
+                />
             </CardContent>
         </Card>
     );

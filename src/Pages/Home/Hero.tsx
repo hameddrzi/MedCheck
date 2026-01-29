@@ -101,6 +101,7 @@ export default function Hero() {
                   color: "#1B2430",
                   backgroundColor: "white",
                 }}
+                onClick={() => navigate("/info")}
               >
                 Scopri di più
               </Button>

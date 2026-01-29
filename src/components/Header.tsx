@@ -1,9 +1,29 @@
-import { AppBar, Toolbar, Typography, Button, Box, Container } from "@mui/material";
+import { AppBar, Toolbar, Typography, Button, Box, Container, Menu, MenuItem, Avatar } from "@mui/material";
 import HealthAndSafetyRoundedIcon from "@mui/icons-material/HealthAndSafetyRounded";
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { useAuth } from "../context/AuthContext";
 
 export default function Header() {
   const navigate = useNavigate();
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const { user, isAuthenticated, logout } = useAuth();
+
+  const userName = user
+    ? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim()
+    : null;
+
+  const handleMenuOpen = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => setAnchorEl(null);
+
+  const handleLogout = async () => {
+    handleMenuClose();
+    await logout();
+    navigate("/my-account?view=login");
+  };
 
   return (
     <AppBar
@@ -54,14 +74,49 @@ export default function Header() {
           </Box>
 
           <Box sx={{ display: "flex", gap: 2 }}>
-            <Button
-              variant="outlined"
-              color="primary"
-              sx={{ textTransform: "none", fontWeight: 700, px: 3 }}
-              onClick={() => navigate("/my-account")}
-            >
-              My Account
-            </Button>
+            {isAuthenticated ? (
+              <>
+                <Button
+                  variant="outlined"
+                  color="primary"
+                  sx={{ textTransform: "none", fontWeight: 700, px: 3, display: "flex", alignItems: "center", gap: 1 }}
+                  onClick={handleMenuOpen}
+                >
+                  <Avatar
+                    sx={{
+                      width: 28,
+                      height: 28,
+                      bgcolor: "#2E6BFF",
+                      fontSize: 14,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {(userName || "Utente").charAt(0).toUpperCase()}
+                  </Avatar>
+                  {userName || "Utente"}
+                </Button>
+                <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
+                  <MenuItem
+                    onClick={() => {
+                      handleMenuClose();
+                      navigate("/my-account?view=dashboard");
+                    }}
+                  >
+                    Dashboard
+                  </MenuItem>
+                  <MenuItem onClick={handleLogout}>Logout</MenuItem>
+                </Menu>
+              </>
+            ) : (
+              <Button
+                variant="outlined"
+                color="primary"
+                sx={{ textTransform: "none", fontWeight: 700, px: 3 }}
+                onClick={() => navigate("/my-account")}
+              >
+                My Account
+              </Button>
+            )}
             <Button
               variant="contained"
               color="primary"
