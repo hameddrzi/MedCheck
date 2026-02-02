@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Container, Typography, Box, CircularProgress, Paper, Divider, Button } from '@mui/material';
+import { Container, Typography, Box, CircularProgress, Paper,  Button } from '@mui/material';
 import { type SiteContent, fetchSiteContent } from '../../api/content';
 import { useNavigate } from 'react-router-dom';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';

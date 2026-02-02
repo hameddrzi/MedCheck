@@ -20,9 +20,9 @@ import { useEffect, useMemo, useState } from "react";
 import { assignDoctorToConsultation, getConsultationById } from "../../api/consult";
 import { useNavigate } from "react-router-dom";
 
-const steps = ["Questionario", "Selezione Medico", "Consulto"];
+const steps = ["Questionario", "Selezione Medico", "Consulto"]; //mostra lo stato del prenotazione
 
-const recommendations = [
+const recommendations = [ // in fine della prenotazione lo mostra
   "Monitorare i sintomi nelle prossime 24 ore",
   "Mantenere una buona idratazione",
   "Riposo adeguato",
@@ -31,31 +31,38 @@ const recommendations = [
 
 export default function Consulto() {
   const responseReceived = true; // toggle to false to show waiting UI
-  const [replyText, setReplyText] = useState("Risposta del 9 dicembre alle ore 15:44");
-  const [patientNome, setPatientNome] = useState("Nome");
-  const [patientCognome, setPatientCognome] = useState("Cognome");
-  const [doctorName, setDoctorName] = useState("Medico Selezionato");
-  const [doctorSpecialty, setDoctorSpecialty] = useState("Specialità");
-  const [doctorAddress, setDoctorAddress] = useState("Indirizzo");
-  const [submissionError, setSubmissionError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [submissionSuccess, setSubmissionSuccess] = useState(false);
+  const [replyText, setReplyText] = useState("Risposta del time");
+  const [patientNome, setPatientNome] = useState("Nome"); //nome del paziente
+  const [patientCognome, setPatientCognome] = useState("Cognome"); // cognome del paziente
+  const [doctorName, setDoctorName] = useState("Medico Selezionato"); // nome del dottore
+  const [doctorSpecialty, setDoctorSpecialty] = useState("Specialità"); // select specialita del dottore
+  const [doctorAddress, setDoctorAddress] = useState("Indirizzo"); // indirizzo del dottore
+  const [submissionError, setSubmissionError] = useState<string | null>(null); // errore del invia finale del documento
+  const [submitting, setSubmitting] = useState(false); // invia finale del documento
+  const [submissionSuccess, setSubmissionSuccess] = useState(false); // successo del invia del documento
   const [consultationId, setConsultationId] = useState<number | null>(null);
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  const [patientEta, setPatientEta] = useState("");
-  const [patientAltezza, setPatientAltezza] = useState("");
-  const [patientPeso, setPatientPeso] = useState("");
+  const [patientEta, setPatientEta] = useState(""); //eta del paziente
+  const [patientAltezza, setPatientAltezza] = useState("");// altezza del paziente
+  const [patientPeso, setPatientPeso] = useState("");// peso del paziente
+  const [patientTelefono, setPatientTelefono] = useState(""); // telefono del paziente
 
+
+  /**
+   * primo useEffect per mostrare subito i dati al UI attraversi sessionStorage
+   * secondo useEffect prende i dati da backend 
+   */
   useEffect(() => {
-    const savedDate = sessionStorage.getItem("consultoDate");
-    const savedTime = sessionStorage.getItem("consultoTime");
+    const savedDate = sessionStorage.getItem("consultoDate"); // recuperare il date
+    const savedTime = sessionStorage.getItem("consultoTime");// recuperare  time
     if (savedDate && savedTime) {
-      const formatted = formatItalianDate(savedDate);
+      const formatted = formatItalianDate(savedDate); //"2026/02/05" -> 5 febbraio 2026
       setReplyText(`Risposta del ${formatted} alle ore ${savedTime}`);
     }
 
+    // legge da sessionStorage, per ricuperare i dati del pagine precedente
     const savedNome = sessionStorage.getItem("patientNome");
     const savedCognome = sessionStorage.getItem("patientCognome");
     const savedEta = sessionStorage.getItem("patientEta");
@@ -66,32 +73,37 @@ export default function Consulto() {
     const savedDoctorAddress = sessionStorage.getItem("consultoDoctorAddress");
     const savedConsultation = sessionStorage.getItem("consultationResponse");
 
+
+    //controllare se non NULL i contenuti
     if (savedNome) setPatientNome(savedNome);
     if (savedCognome) setPatientCognome(savedCognome);
     if (savedEta) setPatientEta(savedEta);
     if (savedAltezza) setPatientAltezza(savedAltezza);
     if (savedPeso) setPatientPeso(savedPeso);
+    const savedTelefono = sessionStorage.getItem("patientTelefono");
+    if (savedTelefono) setPatientTelefono(savedTelefono);
     if (savedDoctorName) setDoctorName(savedDoctorName);
     if (savedDoctorSpecialty) setDoctorSpecialty(savedDoctorSpecialty);
     if (savedDoctorAddress) setDoctorAddress(savedDoctorAddress);
     if (savedConsultation) {
       try {
-        const parsed = JSON.parse(savedConsultation);
+        const parsed = JSON.parse(savedConsultation); // controlla per salvare JSON
         if (parsed?.id) setConsultationId(Number(parsed.id));
       } catch (e) {
         // ignore parse errors
       }
     }
-  }, []);
+  }, []); // [] evitare infinite loop (dependency array)
 
-  useEffect(() => {
-    const loadDetails = async () => {
+  useEffect(() => { //load data da backend in pagina
+    const loadDetails = async () => { // to load data to backend
       if (!consultationId) return;
       setDetailsError(null);
       try {
         const data = await getConsultationById(consultationId);
         if (data.firstName) setPatientNome(data.firstName);
         if (data.lastName) setPatientCognome(data.lastName);
+        if (data.phoneNumber) setPatientTelefono(data.phoneNumber);
         if (data.age !== undefined) setPatientEta(String(data.age));
         if (data.heightCm !== undefined) setPatientAltezza(String(data.heightCm));
         if (data.weightKg !== undefined) setPatientPeso(String(data.weightKg));
@@ -107,33 +119,38 @@ export default function Consulto() {
           setReplyText(`Risposta del ${formatted} alle ore ${data.appointmentTime}`);
         }
       } catch (err) {
-        setDetailsError("Errore nel caricamento dei dettagli.");
+        setDetailsError("Errore nel caricamento dei dettagli."); // se problemi to far load data to backend => mostra questo
       }
     };
     loadDetails();
   }, [consultationId]);
 
-  const imc = useMemo(() => {
-    if (!patientAltezza || !patientPeso) return "N/A";
-    const h = parseFloat(patientAltezza) / 100;
-    const w = parseFloat(patientPeso);
-    if (isNaN(h) || isNaN(w) || h === 0) return "N/A";
-    return (w / (h * h)).toFixed(1);
+  /**
+   * uso useMemo per evitare re-rendering ogni volta
+   * diffrenta con useCallback => callback memorizza una funzione, useMemo meorizza un valore
+   */
+  const imc = useMemo(() => { //memorization per creare array
+    if (!patientAltezza || !patientPeso) return "N/A"; //se non c'e altezza o peso returna N/A
+    const h = parseFloat(patientAltezza) / 100; // convertire float to integer => 1,75 = 175
+    const w = parseFloat(patientPeso); 
+    if (isNaN(h) || isNaN(w) || h === 0) return "N/A"; // controlla se i numeri solo validi per altezza e peso
+    return (w / (h * h)).toFixed(1); // crea BMI del paziente
   }, [patientAltezza, patientPeso]);
 
   const patientSummary = useMemo(
     () => [
       { label: "Nome", value: patientNome },
       { label: "Cognome", value: patientCognome },
+      { label: "Telefono", value: patientTelefono || "-" },
       { label: "Età", value: patientEta ? `${patientEta} anni` : "-" },
       { label: "Altezza", value: patientAltezza ? `${patientAltezza} cm` : "-" },
       { label: "Peso", value: patientPeso ? `${patientPeso} kg` : "-" },
       { label: "IMC", value: imc },
     ],
-    [patientNome, patientCognome, patientEta, patientAltezza, patientPeso, imc]
+    [patientNome, patientCognome, patientTelefono, patientEta, patientAltezza, patientPeso, imc]
   );
 
-  const handleSendRequest = async () => {
+  const handleSendRequest = async () => {//invia finale
     if (!consultationId) {
       setSubmissionError("Nessun consultationId disponibile. Completa prima il questionario.");
       return;

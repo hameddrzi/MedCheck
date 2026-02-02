@@ -1,9 +1,13 @@
 import { axiosInstance } from "./axios";
 
+/**
+ * questinario Field
+ */
 export interface ConsultationRequestPayload {
   firstName: string;
   lastName: string;
   codiceFiscale: string;
+  phoneNumber?: string;
   age: number;
   gender: string;
   heightCm: number;
@@ -35,6 +39,7 @@ export interface ConsultationResponsePayload {
   firstName?: string;
   lastName?: string;
   codiceFiscale?: string;
+  phoneNumber?: string;
   age?: number;
   gender?: string;
   heightCm?: number;

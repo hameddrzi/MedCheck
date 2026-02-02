@@ -1,5 +1,8 @@
 import { axiosInstance } from "./axios";
 
+/**
+ * GET profile content of user to show in Dashboard
+ */
 export interface ConsultationItem {
   id: number;
   doctorName: string;
@@ -55,6 +58,7 @@ export const fetchUserAndConsultations = async (
   return { user, consultations };
 };
 
+//in edit profile
 export const updateUser = async (userId: number | string, data: Partial<UserProfile>): Promise<UserProfile> => {
   const response = await axiosInstance.put(`/users/${userId}`, data);
   return response.data;

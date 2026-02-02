@@ -18,4 +18,6 @@ export interface Doctor {
   email: string;
   rating: number;
   reviewsCount: number;
+  latitude?: number;
+  longitude?: number;
 }

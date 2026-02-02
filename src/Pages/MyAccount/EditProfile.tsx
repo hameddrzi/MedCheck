@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState} from "react";
 import {
     Box,
     Typography,
@@ -43,19 +43,19 @@ export default function EditProfile({ user, onUpdate, onCancel }: EditProfilePro
         setSuccess(false);
 
         try {
-            // Sanitize data: convert empty strings to null for optional fields
+            // Sanitize data: convert empty strings to undefined for optional fields
             const payload = {
                 ...formData,
-                heightCm: formData.heightCm ? Number(formData.heightCm) : null,
-                birthDate: formData.birthDate || null,
-                // Ensure mandatory fields are at least empty string if null (though required prop on input handles this usually)
+                heightCm: formData.heightCm ? Number(formData.heightCm) : undefined,
+                birthDate: formData.birthDate || undefined,
+                // Ensure mandatory fields are at least empty string if undefined (though required prop on input handles this usually)
                 firstName: formData.firstName,
                 lastName: formData.lastName,
                 mobileNumber: formData.mobileNumber,
                 codiceFiscale: formData.codiceFiscale
             };
 
-            const updated = await updateUser(user.id, payload);
+            const updated = await updateUser(user.id, payload );
             setSuccess(true);
             onUpdate(updated);
             // Optional: auto-return to dashboard after delay or let user choose

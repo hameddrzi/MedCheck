@@ -11,7 +11,7 @@ import { AuthProvider } from "./context/AuthContext";
 
 function App() {
   return (
-    <AuthProvider>
+    <AuthProvider> {/**viene da "context/AuthContext.tsx" */}
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/questionario" element={<Questionnaire />} />

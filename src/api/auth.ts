@@ -1,5 +1,9 @@
 import { axiosInstance } from "./axios";
-
+/**
+ * per authentication user 
+ * Register / Login / ForgotPassword
+ * 
+ */
 export interface RegisterPayload {
   firstName: string;
   lastName: string;
@@ -10,6 +14,8 @@ export interface RegisterPayload {
   password: string;
 }
 
+
+//responce of backend with Consultation
 export interface RegisterResponse {
   user?: {
     id?: number;
@@ -50,7 +56,7 @@ export interface LoginPayload {
 export const loginUser = async (
   payload: LoginPayload
 ): Promise<UserProfileResponse> => {
-  const response = await axiosInstance.post("/auth/login", payload);
+  const response = await axiosInstance.post("/auth/login", payload);//post to backend and check pass and userid in backend
   return response.data;
 };
 

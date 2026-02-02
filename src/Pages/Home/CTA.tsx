@@ -66,8 +66,8 @@ export default function CTA() {
               backgroundColor: "#f1f6ff",
             },
           }}
-          onClick={() => navigate("/questionario")}
-        >
+          onClick={() => navigate("/questionario")} //naviga alla Forma
+        > 
           Inizia la Pre-valutazione Gratuita
         </Button>
       </Container>

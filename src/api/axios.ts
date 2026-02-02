@@ -1,8 +1,13 @@
 import axios from "axios";
-
+/**
+ * usare Axios invece di Fetch
+ * perche fa Stringify/Parse outomaticamente 
+ * handle of status Code
+ * mostra gli errori in modo giusto
+ */
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
-export const axiosInstance = axios.create({
+export const axiosInstance = axios.create({ //creqte istance of Axios
     baseURL: API_BASE,
     withCredentials: true, // Key for sending cookies
     headers: {

@@ -19,7 +19,7 @@ interface DoctorCardProps {
     doctor: Doctor;
 }
 
-export default function DoctorCard({ doctor }: DoctorCardProps) {
+export default function DoctorCard({ doctor }: DoctorCardProps) { //Doctors chiama questa child with props
     const avatarLetter =
         doctor.lastName?.[0] || doctor.firstName?.[0] || doctor.fullName?.[0] || "M";
     const hasCompletedVisit = false; // placeholder until real visit validation is wired

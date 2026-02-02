@@ -58,16 +58,16 @@ export default function DoctorSelection() {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
-    let active = true;
+    let active = true; //mostrare i dottori
     const loadDoctors = async () => {
       setLoading(true);
       setError(null);
       try {
-        const { doctors: apiDoctors } = await fetchDoctors({ size: 20 });
+        const { doctors: apiDoctors } = await fetchDoctors({ size: 20 }); //richiesta a backend
         if (!active) return;
-        const normalized = normalizeDoctors(apiDoctors);
-        setDoctors(normalized);
-        setSelectedId(normalized[0]?.id ?? null);
+        const normalized = normalizeDoctors(apiDoctors); //se i dati dei dottori hanni problemi lo fa normalizza (mette anche la mappa)
+        setDoctors(normalized); // mette la lista dei dottori in state
+        setSelectedId(normalized[0]?.id ?? null); //select primo dottore default
       } catch (err) {
         if (active) {
           setError("Errore nel caricamento dei medici. Riprova più tardi.");
@@ -289,39 +289,39 @@ export default function DoctorSelection() {
             <Grid container spacing={3}>
               {showMap && (
                 <Grid item xs={12} md={5}>
-                <Box
-                  sx={{
-                    border: "1px solid #dfe4ed",
-                    borderRadius: 3,
-                    overflow: "hidden",
-                  }}
-                >
-                  <DoctorMap
-                    doctors={filteredDoctors}
-                    selectedId={selected?.id ?? null}
-                    onSelect={setSelectedId}
-                  />
-                </Box>
+                  <Box
+                    sx={{
+                      border: "1px solid #dfe4ed",
+                      borderRadius: 3,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <DoctorMap
+                      doctors={filteredDoctors}
+                      selectedId={selected?.id ?? null}
+                      onSelect={setSelectedId}
+                    />
+                  </Box>
                 </Grid>
               )}
 
               <Grid item xs={12} md={showMap ? 7 : 12}>
                 <Box
                   sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                mb: 2,
-                px: 0.5,
-              }}
-            >
-              <Typography sx={{ color: "#1e2f53", fontWeight: 600 }}>
-                {loading ? "Caricamento medici..." : `Trovati ${filteredDoctors.length} medici`}
-              </Typography>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <CircleIcon sx={{ color: "#1fb26b", fontSize: 12 }} />
-                <Typography sx={{ color: "#1e2f53" }}>Disponibile ora</Typography>
-              </Box>
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    mb: 2,
+                    px: 0.5,
+                  }}
+                >
+                  <Typography sx={{ color: "#1e2f53", fontWeight: 600 }}>
+                    {loading ? "Caricamento medici..." : `Trovati ${filteredDoctors.length} medici`}
+                  </Typography>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <CircleIcon sx={{ color: "#1fb26b", fontSize: 12 }} />
+                    <Typography sx={{ color: "#1e2f53" }}>Disponibile ora</Typography>
+                  </Box>
                 </Box>
 
                 <Box
@@ -334,97 +334,97 @@ export default function DoctorSelection() {
                     gap: 2,
                   }}
                 >
-              {error && (
-                <Typography sx={{ color: "#d32f2f", fontWeight: 600 }}>{error}</Typography>
-              )}
-              {(loading
-                ? (Array.from({ length: 3 }) as (DoctorCardData | null)[])
-                : (filteredDoctors as (DoctorCardData | null)[])
-              ).map((doc, idx) => {
-                if (!doc) {
-                  return (
-                    <Box
-                      key={idx}
-                      sx={{
-                        borderRadius: 3,
-                        border: "2px solid #dfe4ed",
-                        backgroundColor: "#f5f7fb",
-                        height: 120,
-                      }}
-                    />
-                  );
-                }
-                const active = selected?.id === doc.id;
-                return (
-                  <Box
-                    key={doc.id}
-                    role="button"
-                    onClick={() => setSelectedId(doc.id)}
-                    sx={{
-                      borderRadius: 3,
-                      border: `2px solid ${active ? "#256bff" : "#dfe4ed"}`,
-                      boxShadow: active ? "0px 12px 30px rgba(37,107,255,0.12)" : "0px 8px 20px rgba(0,0,0,0.04)",
-                      backgroundColor: active ? "rgba(37,107,255,0.06)" : "white",
-                      p: 2,
-                      cursor: "pointer",
-                      transition: "all 0.15s ease",
-                    }}
-                  >
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                  {error && (
+                    <Typography sx={{ color: "#d32f2f", fontWeight: 600 }}>{error}</Typography>
+                  )}
+                  {(loading
+                    ? (Array.from({ length: 3 }) as (DoctorCardData | null)[])
+                    : (filteredDoctors as (DoctorCardData | null)[])
+                  ).map((doc, idx) => {
+                    if (!doc) {
+                      return (
+                        <Box
+                          key={idx}
+                          sx={{
+                            borderRadius: 3,
+                            border: "2px solid #dfe4ed",
+                            backgroundColor: "#f5f7fb",
+                            height: 120,
+                          }}
+                        />
+                      );
+                    }
+                    const active = selected?.id === doc.id;
+                    return (
                       <Box
+                        key={doc.id}
+                        role="button"
+                        onClick={() => setSelectedId(doc.id)}
                         sx={{
-                          width: 44,
-                          height: 44,
-                          borderRadius: "14px",
-                          backgroundColor: "#eef4ff",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          color: "#256bff",
-                          flexShrink: 0,
+                          borderRadius: 3,
+                          border: `2px solid ${active ? "#256bff" : "#dfe4ed"}`,
+                          boxShadow: active ? "0px 12px 30px rgba(37,107,255,0.12)" : "0px 8px 20px rgba(0,0,0,0.04)",
+                          backgroundColor: active ? "rgba(37,107,255,0.06)" : "white",
+                          p: 2,
+                          cursor: "pointer",
+                          transition: "all 0.15s ease",
                         }}
                       >
-                        <LocalHospitalRoundedIcon />
-                      </Box>
-                      <Box sx={{ flex: 1 }}>
-                        <Typography fontWeight={800} sx={{ color: "#1e2f53" }}>
-                          {doc.name}
-                        </Typography>
-                        <Typography sx={{ color: "#5a6782" }}>{doc.role}</Typography>
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, color: "#6d7a94", mt: 0.5 }}>
-                          <PlaceRoundedIcon fontSize="small" />
-                          <Typography sx={{ color: "#6d7a94" }}>
-                            {doc.address} • {doc.distanceKm} km
-                          </Typography>
-                        </Box>
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mt: 0.5 }}>
-                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                            <StarRoundedIcon sx={{ fontSize: 18, color: "#f7b500" }} />
-                            <Typography sx={{ color: "#1e2f53", fontWeight: 600 }}>{doc.rating.toFixed(1)}</Typography>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                          <Box
+                            sx={{
+                              width: 44,
+                              height: 44,
+                              borderRadius: "14px",
+                              backgroundColor: "#eef4ff",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              color: "#256bff",
+                              flexShrink: 0,
+                            }}
+                          >
+                            <LocalHospitalRoundedIcon />
                           </Box>
-                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, color: doc.available ? "#1fb26b" : "#9aa4b5" }}>
-                            <CircleIcon sx={{ fontSize: 10 }} />
-                            <Typography>{doc.available ? "Disponibile" : "Non disponibile"}</Typography>
+                          <Box sx={{ flex: 1 }}>
+                            <Typography fontWeight={800} sx={{ color: "#1e2f53" }}>
+                              {doc.name}
+                            </Typography>
+                            <Typography sx={{ color: "#5a6782" }}>{doc.role}</Typography>
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1, color: "#6d7a94", mt: 0.5 }}>
+                              <PlaceRoundedIcon fontSize="small" />
+                              <Typography sx={{ color: "#6d7a94" }}>
+                                {doc.address} • {doc.distanceKm} km
+                              </Typography>
+                            </Box>
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mt: 0.5 }}>
+                              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                                <StarRoundedIcon sx={{ fontSize: 18, color: "#f7b500" }} />
+                                <Typography sx={{ color: "#1e2f53", fontWeight: 600 }}>{doc.rating.toFixed(1)}</Typography>
+                              </Box>
+                              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, color: doc.available ? "#1fb26b" : "#9aa4b5" }}>
+                                <CircleIcon sx={{ fontSize: 10 }} />
+                                <Typography>{doc.available ? "Disponibile" : "Non disponibile"}</Typography>
+                              </Box>
+                            </Box>
                           </Box>
+                          <CheckCircleOutlineRoundedIcon
+                            sx={{
+                              color: active ? "#256bff" : "#d0d6e3",
+                              fontSize: 26,
+                            }}
+                          />
                         </Box>
-                      </Box>
-                      <CheckCircleOutlineRoundedIcon
-                        sx={{
-                          color: active ? "#256bff" : "#d0d6e3",
-                          fontSize: 26,
-                        }}
-                      />
-                    </Box>
 
-                    {doc.message && (
-                      <>
-                        <Divider sx={{ my: 1.5 }} />
-                        <Typography sx={{ color: "#4c5975" }}>{doc.message}</Typography>
-                      </>
-                    )}
-                  </Box>
-                );
-              })}
+                        {doc.message && (
+                          <>
+                            <Divider sx={{ my: 1.5 }} />
+                            <Typography sx={{ color: "#4c5975" }}>{doc.message}</Typography>
+                          </>
+                        )}
+                      </Box>
+                    );
+                  })}
                 </Box>
               </Grid>
             </Grid>
@@ -468,7 +468,7 @@ export default function DoctorSelection() {
                     sessionStorage.setItem("consultoDoctorName", selected.name);
                     sessionStorage.setItem("consultoDoctorSpecialty", selected.role || "");
                     sessionStorage.setItem("consultoDoctorAddress", selected.address || "");
-                    navigate("/consulto");
+                    navigate("/consulto"); // navigate in modo preriquisito
                   } catch (err) {
                     setSubmitError("Errore nel salvataggio dell'appuntamento. Riprova.");
                   } finally {
@@ -555,7 +555,7 @@ const doctorSlots: Record<string, string[]> = {
   ferrari: ["09:00", "10:00", "11:00", "14:30", "16:30"],
 };
 
-function normalizeDoctors(apiDoctors: any[]): DoctorCardData[] {
+function normalizeDoctors(apiDoctors: any[]): DoctorCardData[] { //google api non era gratuitamente
   const cityCenters: Record<string, [number, number]> = {
     milano: [45.4642, 9.19],
     roma: [41.9028, 12.4964],
@@ -563,16 +563,39 @@ function normalizeDoctors(apiDoctors: any[]): DoctorCardData[] {
     torino: [45.0703, 7.6869],
     bologna: [44.4949, 11.3426],
     firenze: [43.7696, 11.2558],
+    trieste: [45.6495, 13.7768],
+    venezia: [45.4408, 12.3155],
+    verona: [45.4384, 10.9916],
+    genova: [44.4056, 8.9463],
+    palermo: [38.1157, 13.3615],
+    bari: [41.1171, 16.8719],
+    catania: [37.5079, 15.083],
+    padova: [45.4064, 11.8768],
+    brescia: [45.5416, 10.2118],
+    parma: [44.8015, 10.3279],
+    modena: [44.6471, 10.9252],
+    reggio_emilia: [44.6989, 10.6297],
+    perugia: [43.1107, 12.3908],
+    udine: [46.0625, 13.2346],
   };
   const fallbackSlots = ["09:00", "11:00", "14:00", "16:00"];
 
   return apiDoctors.map((doc, idx) => {
     const name = doc.fullName || `${doc.firstName ?? ""} ${doc.lastName ?? ""}`.trim() || "Medico";
     const id = String(doc.id ?? idx);
-    const cityKey = (doc.city || "").toString().toLowerCase();
-    const baseCenter = cityCenters[cityKey] ?? cityCenters.milano;
-    const offsetLat = baseCenter[0] + 0.02 * Math.cos(idx);
-    const offsetLng = baseCenter[1] + 0.02 * Math.sin(idx);
+
+    // Use real coordinates from API if available, otherwise calculate from city
+    let position: [number, number];
+    if (doc.latitude != null && doc.longitude != null) {
+      position = [doc.latitude, doc.longitude];
+    } else {
+      // Fallback: calculate position from city center
+      const cityKey = (doc.city || "").toString().toLowerCase();
+      const baseCenter = cityCenters[cityKey] ?? cityCenters.milano;
+      const offsetLat = baseCenter[0] + 0.02 * Math.cos(idx);
+      const offsetLng = baseCenter[1] + 0.02 * Math.sin(idx);
+      position = [offsetLat, offsetLng];
+    }
 
     return {
       id,
@@ -583,7 +606,7 @@ function normalizeDoctors(apiDoctors: any[]): DoctorCardData[] {
       rating: Number(doc.rating ?? 0),
       available: true,
       message: "Questo medico è attualmente disponibile e potrà rispondere al tuo consulto entro poche ore.",
-      position: [offsetLat, offsetLng],
+      position,
       slots: doctorSlots[id] ?? fallbackSlots,
     };
   });

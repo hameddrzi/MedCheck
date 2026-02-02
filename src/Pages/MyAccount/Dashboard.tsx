@@ -1,10 +1,11 @@
-import { Box, Typography, Paper, Table, TableBody, TableCell, TableHead, TableRow, Button, Chip, CircularProgress } from "@mui/material";
+import { Box, Typography, Paper, Table, TableBody, TableCell, TableHead, TableRow, Button, Chip, CircularProgress, IconButton, Tooltip } from "@mui/material";
 import GridViewRoundedIcon from '@mui/icons-material/GridViewRounded';
 import CalendarTodayRoundedIcon from '@mui/icons-material/CalendarTodayRounded';
 import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded';
 import RateReviewRoundedIcon from '@mui/icons-material/RateReviewRounded';
 import ManageAccountsRoundedIcon from '@mui/icons-material/ManageAccountsRounded';
-import { useEffect, useMemo, useState } from "react";
+import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { fetchUserAndConsultations, type UserWithConsultations, type ConsultationItem } from "../../api/dashboard";
 import ReviewModal from "../../components/ReviewModal";
 import EditProfile from "./EditProfile";
@@ -25,6 +26,52 @@ export default function Dashboard() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // Extract load function so we can reuse it for refresh
+    //se utente gia fatto una richiesta, backend lo trova e  qui fa fetch tutti
+    const loadConsultations = useCallback(async () => {
+        if (!authUser) return;
+
+        setLoading(true);
+        setError(null);
+        try {
+            // We use authUser for user details, but fetch consultations freshly
+            const res = await fetchUserAndConsultations(authUser.id);
+            const consultations = (res.consultations || []).map((c: any): ConsultationItem => ({
+                id: c.id,
+                doctorName:
+                    c.doctorName ||
+                    `${c.doctor?.firstName ?? ""} ${c.doctor?.lastName ?? ""}`.trim() ||
+                    (c.doctorId ? `Dott. #${c.doctorId}` : "-"),
+                doctorSpecialty: c.doctorSpecialty || c.doctor?.specialty || "-",
+                doctorCity: c.doctor?.city,
+                appointmentDate: c.appointmentDate,
+                appointmentTime: c.appointmentTime,
+                requestDate: c.requestDate || c.createdAt || c.requestDateTime || c.requestDatetime || c.request_date_time || "",
+                requestDateTime: c.requestDateTime || c.requestDatetime || c.request_date_time || "",
+                problemSummary: c.problemSummary,
+                doctorId: c.doctorId,
+                problem: c.problemSummary || c.symptomsDescription || c.problem || "-",
+            }));
+
+            // sort by requestDateTime/appointmentDate descending (latest first)
+            consultations.sort((a, b) => {
+                const timeA = new Date(a.requestDateTime || a.requestDate || a.appointmentDate || "").getTime();
+                const timeB = new Date(b.requestDateTime || b.requestDate || b.appointmentDate || "").getTime();
+                return timeB - timeA;
+            });
+
+            const normalized: UserWithConsultations = {
+                user: res.user,
+                consultations,
+            };
+            setData(normalized);
+        } catch (err) {
+            setError("Errore nel caricamento delle consultazioni.");
+        } finally {
+            setLoading(false);
+        }
+    }, [authUser]);
+
     useEffect(() => {
         // If auth is strictly loading, wait.
         if (authLoading) return;
@@ -36,56 +83,10 @@ export default function Dashboard() {
             return;
         }
 
-        let active = true;
-        const load = async () => {
-            setLoading(true);
-            setError(null);
-            try {
-                // We use authUser for user details, but fetch consultations freshly
-                const res = await fetchUserAndConsultations(authUser.id);
-                const consultations = (res.consultations || []).map((c: any): ConsultationItem => ({
-                    id: c.id,
-                    doctorName:
-                        c.doctorName ||
-                        `${c.doctor?.firstName ?? ""} ${c.doctor?.lastName ?? ""}`.trim() ||
-                        (c.doctorId ? `Dott. #${c.doctorId}` : "-"),
-                    doctorSpecialty: c.doctorSpecialty || c.doctor?.specialty || "-",
-                    doctorCity: c.doctor?.city,
-                    appointmentDate: c.appointmentDate,
-                    appointmentTime: c.appointmentTime,
-                    requestDate: c.requestDate || c.createdAt || c.requestDateTime || c.requestDatetime || c.request_date_time || "",
-                    requestDateTime: c.requestDateTime || c.requestDatetime || c.request_date_time || "",
-                    problemSummary: c.problemSummary,
-                    doctorId: c.doctorId,
-                    problem: c.problemSummary || c.symptomsDescription || c.problem || "-",
-                }));
+        loadConsultations();
+    }, [authUser, authLoading, loadConsultations]);
 
-                // sort by requestDateTime/appointmentDate descending (latest first)
-                consultations.sort((a, b) => {
-                    const timeA = new Date(a.requestDateTime || a.requestDate || a.appointmentDate || "").getTime();
-                    const timeB = new Date(b.requestDateTime || b.requestDate || b.appointmentDate || "").getTime();
-                    return timeB - timeA;
-                });
-
-                const normalized: UserWithConsultations = {
-                    user: res.user,
-                    consultations,
-                };
-                if (!active) return;
-                setData(normalized);
-            } catch (err) {
-                if (active) setError("Errore nel caricamento delle consultazioni.");
-            } finally {
-                if (active) setLoading(false);
-            }
-        };
-        load();
-        return () => {
-            active = false;
-        };
-    }, [authUser, authLoading]);
-
-    const fullName = useMemo(() => {
+    const fullName = useMemo(() => {//memorizza il nome del utente per mostrare nel profilo
         // prioritize data.user if available, else authUser
         const u = data?.user || authUser;
         const apiName = `${u?.firstName ?? ""} ${u?.lastName ?? ""}`.trim();
@@ -189,9 +190,23 @@ export default function Dashboard() {
 
                         {/* Appointments Section */}
                         <Paper elevation={0} sx={{ p: 4, borderRadius: 4, bgcolor: '#fff', minHeight: 400, boxShadow: '0px 4px 20px rgba(0,0,0,0.02)' }}>
-                            <Typography variant="h6" fontWeight={700} sx={{ color: '#1B2430', mb: 3 }}>
-                                i tuoi appuntamento
-                            </Typography>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                                <Typography variant="h6" fontWeight={700} sx={{ color: '#1B2430' }}>
+                                    i tuoi appuntamento
+                                </Typography>
+                                <Tooltip title="Aggiorna lista">
+                                    <IconButton
+                                        onClick={loadConsultations}
+                                        disabled={loading}
+                                        sx={{
+                                            color: '#2E6BFF',
+                                            '&:hover': { bgcolor: 'rgba(46, 107, 255, 0.08)' }
+                                        }}
+                                    >
+                                        <RefreshRoundedIcon />
+                                    </IconButton>
+                                </Tooltip>
+                            </Box>
 
                             {loading && (
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#64748B' }}>

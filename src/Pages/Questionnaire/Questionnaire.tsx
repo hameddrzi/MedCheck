@@ -31,12 +31,13 @@ import Grid from "@mui/material/GridLegacy";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { submitConsultation } from "../../api/consult";
-import { fetchUserProfile } from "../../api/dashboard";
+//import { fetchUserProfile } from "../../api/dashboard";
 
 const initialFormState = {
   nome: "",
   cognome: "",
   codiceFiscale: "",
+  telefono: "",
   sesso: "",
   birthDate: "",
   altezza: "",
@@ -58,12 +59,12 @@ export default function Questionnaire() {
   const theme = useTheme();
   const navigate = useNavigate();
   const { user: authUser, isAuthenticated } = useAuth(); // Use Auth Context
-  const [selectedSymptoms, setSelectedSymptoms] = useState<Set<string>>(new Set());
-  const [formState, setFormState] = useState<FormState>(initialFormState);
+  const [selectedSymptoms, setSelectedSymptoms] = useState<Set<string>>(new Set()); //6 selection in sotto pagine
+  const [formState, setFormState] = useState<FormState>(initialFormState);//mantiene tutti i campi(nome/ cognome/....) 
   const [hasPastDiseases, setHasPastDiseases] = useState<boolean>(true);
-  const [hasNausea, setHasNausea] = useState<boolean>(true);
-  const [loading, setLoading] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [hasNausea, setHasNausea] = useState<boolean>(false);
+  const [loading, setLoading] = useState(false);//manda all backend
+  const [submitError, setSubmitError] = useState<string | null>(null); //se fallisce mantiene l'errore per mostrare
   const [showErrors, setShowErrors] = useState(false);
 
   // No need for separate prefilled state, we use isAuthenticated
@@ -75,8 +76,8 @@ export default function Questionnaire() {
   const lockedPersonalInfo = isAuthenticated;
 
   useEffect(() => {
-    if (authUser) {
-      setFormState((s) => ({
+    if (authUser) { /**se user era login, mette tutto il campo altrimenti puo cambiare */
+      setFormState((s) => ({ //compila automaticamente tutto i formi
         ...s,
         nome: authUser.firstName || s.nome,
         cognome: authUser.lastName || s.cognome,
@@ -93,20 +94,21 @@ export default function Questionnaire() {
         sesso: authUser.gender ? mapGender(authUser.gender) : s.sesso,
       }));
     }
-  }, [authUser]);
+  }, [authUser]);//quando cambiato lo genera di nuovo
 
-  const toggleSymptom = (id: string) => {
+  const toggleSymptom = (id: string) => { // per selezionare quel 8 a scelta in sotto della forma
     setSelectedSymptoms((prev) => {
-      const next = new Set(prev);
+      const next = new Set(prev);//se selezionato->cancella / se non selezionato->seleziona
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
   };
 
-  const requiredMissing =
+  const requiredMissing = //quando sia true significa field vuoto
     !formState.nome ||
     !formState.cognome ||
     !formState.codiceFiscale ||
+    !formState.telefono ||
     !formState.sesso ||
     !formState.birthDate ||
     !formState.altezza ||
@@ -115,29 +117,32 @@ export default function Questionnaire() {
     !formState.durataSintomi;
 
   const handleContinue = () => {
-    if (requiredMissing) {
+    if (requiredMissing) { //if campo vuoto => show error
       setShowErrors(true);
       return;
     }
     submit();
   };
 
-  const submit = async () => {
+  const submit = async () => { //quando tocchi la componente submit
     setLoading(true);
     setSubmitError(null);
     try {
-      const payload = mapToPayload({
+      const payload = mapToPayload({ //crea un Payload
         formState,
         hasPastDiseases,
         hasNausea,
         selectedSymptoms,
       });
 
-      const response = await submitConsultation(payload);
+      const response = await submitConsultation(payload); // viene da api file(consult.ts)
 
+
+      //registra tutti i moduli in sessionStorage per la pagina prossima
       sessionStorage.setItem("consultationResponse", JSON.stringify(response || {}));
       sessionStorage.setItem("patientNome", formState.nome);
       sessionStorage.setItem("patientCognome", formState.cognome);
+      sessionStorage.setItem("patientTelefono", formState.telefono);
       const computedAge = calculateAge(formState.birthDate);
       if (computedAge !== null) {
         sessionStorage.setItem("patientEta", String(computedAge));
@@ -145,7 +150,7 @@ export default function Questionnaire() {
       sessionStorage.setItem("patientAltezza", formState.altezza);
       sessionStorage.setItem("patientPeso", formState.peso);
 
-      navigate("/selezione-medico");
+      navigate("/selezione-medico"); // se ben andato -> nagiva in pagina DoctorSelection
     } catch (err) {
       setSubmitError("Errore nell'invio del questionario. Riprova tra poco.");
     } finally {
@@ -239,6 +244,19 @@ export default function Questionnaire() {
                 disabled={lockedPersonalInfo}
                 error={showErrors && !formState.codiceFiscale}
                 helperText={showErrors && !formState.codiceFiscale ? "Campo obbligatorio" : ""}
+                FormHelperTextProps={{ sx: { color: "#d32f2f" } }}
+                sx={inputRadiusSx}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Telefono *"
+                placeholder="Es. 3331234567"
+                value={formState.telefono}
+                onChange={(e) => setFormState((s) => ({ ...s, telefono: e.target.value }))}
+                error={showErrors && !formState.telefono}
+                helperText={showErrors && !formState.telefono ? "Campo obbligatorio" : ""}
                 FormHelperTextProps={{ sx: { color: "#d32f2f" } }}
                 sx={inputRadiusSx}
               />
@@ -559,6 +577,7 @@ function mapToPayload({
     firstName: formState.nome,
     lastName: formState.cognome,
     codiceFiscale: formState.codiceFiscale,
+    phoneNumber: formState.telefono,
     age: calculateAge(formState.birthDate) ?? 0,
     gender: genderMap[formState.sesso] || formState.sesso,
     heightCm: Number(formState.altezza),

@@ -25,7 +25,7 @@ export default function Doctors() {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        let isMounted = true;
+        let isMounted = true; //se componente UnMounted ma ancora API non da risposta, evita di setState
 
         const loadDoctors = async () => {
             setLoading(true);
@@ -33,7 +33,7 @@ export default function Doctors() {
             try {
                 const { doctors: fetchedDoctors } = await fetchDoctors({ size: 100 });
                 if (isMounted) {
-                    setDoctors(fetchedDoctors);
+                    setDoctors(fetchedDoctors); // mette i nomi dei dottori in seDoctors
                 }
             } catch (err) {
                 if (isMounted) {
@@ -41,7 +41,7 @@ export default function Doctors() {
                 }
             } finally {
                 if (isMounted) {
-                    setLoading(false);
+                    setLoading(false); // se falisce o riuscire => chiude tutto
                 }
             }
         };
@@ -52,7 +52,7 @@ export default function Doctors() {
         };
     }, []);
 
-    // Get unique specialties
+    // get speciality e crea new array e cancella dopplicate speciality
     const specialties = useMemo(
         () => Array.from(new Set(doctors.map((doctor) => doctor.specialty))),
         [doctors]
@@ -203,9 +203,9 @@ export default function Doctors() {
                                       />
                                   </Grid>
                               ))
-                            : filteredDoctors.map((doctor) => (
+                            : filteredDoctors.map((doctor) => (//manda ogni dottore
                                   <Grid item xs={12} md={6} lg={4} key={doctor.id}>
-                                      <DoctorCard doctor={doctor} />
+                                      <DoctorCard doctor={doctor} />{/**chiama child with props */}
                                   </Grid>
                               ))}
                     </Grid>

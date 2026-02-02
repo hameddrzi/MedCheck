@@ -98,9 +98,7 @@ export default function Footer() {
               Legale
             </Typography>
 
-            <Link href="#" underline="none" sx={linkStyle}>
-              Privacy Policy
-            </Link>
+
             <Link href="#" underline="none" sx={linkStyle}>
               Termini di servizio
             </Link>

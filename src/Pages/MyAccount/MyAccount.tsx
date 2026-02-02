@@ -1,25 +1,25 @@
 import { Box, Button, Card, CardContent, Container, Typography, TextField, Stack } from "@mui/material";
 import LoginRoundedIcon from "@mui/icons-material/LoginRounded";
 import Header from "../../components/Header";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useSearchParams} from "react-router-dom";
 import Dashboard from "./Dashboard";
 import { useState, useEffect } from "react";
 import { registerUser, loginUser, resetPassword, type UserProfileResponse } from "../../api/auth";
 import { useAuth } from "../../context/AuthContext";
 
-type ViewState = 'selection' | 'login' | 'signup' | 'dashboard' | 'forgot';
+type ViewState = 'selection' | 'login' | 'signup' | 'dashboard' | 'forgot'; //type of show in questa parte
 
 export default function MyAccount() {
-    const [searchParams, setSearchParams] = useSearchParams();
-    const navigate = useNavigate();
-    const { login, isAuthenticated, user } = useAuth();
+    const [searchParams, setSearchParams] = useSearchParams(); // per view path
+    //const navigate = useNavigate();
+    const { login, isAuthenticated } = useAuth();
     // Logic to sync URL view with auth state
     const view = (searchParams.get('view') as ViewState) || 'selection';
 
     useEffect(() => {
         if (isAuthenticated) {
             // If logged in, ensure we are on dashboard view or just render dashboard
-            if (view !== 'dashboard') setSearchParams({ view: 'dashboard' });
+            if (view !== 'dashboard') setSearchParams({ view: 'dashboard' }); //se utente e' login => mostra dashboard
         }
     }, [isAuthenticated, view, setSearchParams]);
 
@@ -43,14 +43,14 @@ export default function MyAccount() {
     const [forgotLoading, setForgotLoading] = useState(false);
 
     const setView = (newView: ViewState) => {
-        setSearchParams({ view: newView });
+        setSearchParams({ view: newView }); // mostra query stringa di una di queste 5 pagine
     };
 
     const handleSignup = async () => {
         setSignupError(null);
 
         // Frontend validation before hitting backend
-        if (!signupForm.firstName.trim() || !signupForm.lastName.trim() || !signupForm.mobileNumber.trim() || !signupForm.codiceFiscale.trim() || !signupForm.birthDate) {
+        if (!signupForm.firstName.trim() || !signupForm.lastName.trim()/**cancella lo spazio */ || !signupForm.mobileNumber.trim() || !signupForm.codiceFiscale.trim() || !signupForm.birthDate) {
             setSignupError("Compila tutti i campi obbligatori.");
             return;
         }
@@ -83,7 +83,7 @@ export default function MyAccount() {
             if (res.user) {
                 login(res.user as UserProfileResponse);
             }
-            setView('dashboard');
+            setView('dashboard'); //mostra ui di dashboard
         } catch (err: any) {
             const backendMessage =
                 err?.response?.data?.message ||
@@ -101,7 +101,10 @@ export default function MyAccount() {
             setLoginError("Inserisci credenziali valide.");
             return;
         }
-        const normalizedIdentifier = /[a-zA-Z]/.test(loginForm.identifier)
+        /**
+         * prima fa normalizza e poi chiede da backend
+         */
+        const normalizedIdentifier = /[a-zA-Z]/.test(loginForm.identifier) //controlla per a-z / A-Z per normalizzare
             ? loginForm.identifier.trim().toUpperCase()
             : loginForm.identifier.trim();
         setLoginLoading(true);

@@ -6,11 +6,11 @@ import { useAuth } from "../context/AuthContext";
 
 export default function Header() {
   const navigate = useNavigate();
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null); // to show Profile anD logOut
   const { user, isAuthenticated, logout } = useAuth();
 
   const userName = user
-    ? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim()
+    ? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() //to show name of user in header
     : null;
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -19,6 +19,8 @@ export default function Header() {
 
   const handleMenuClose = () => setAnchorEl(null);
 
+
+  //dopo utente far logout, navigate a path Login
   const handleLogout = async () => {
     handleMenuClose();
     await logout();

@@ -123,11 +123,11 @@ export default function DoctorReviews({ doctorId, canReview = false }: Props) {
       </Button>
 
       <ReviewModal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        doctorId={doctorId}
-        canReview={canReview}
-        initialView="list"
+        open={modalOpen} //boolear
+        onClose={() => setModalOpen(false)} //chiedere modal
+        doctorId={doctorId} // fetch tutti review di dottore
+        canReview={canReview} //boolean
+        initialView="list" //mostra la lista
       />
     </Box>
   );

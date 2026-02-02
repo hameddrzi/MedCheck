@@ -31,12 +31,12 @@ interface ReviewModalProps {
 }
 
 const ReviewModal = ({
-    open,
-    onClose,
-    doctorId,
-    doctorName,
-    canReview = false,
-    initialView = "list",
+    open,//props
+    onClose,//props
+    doctorId,//props
+    doctorName,//props
+    canReview = false,//props
+    initialView = "list", //props
 }: ReviewModalProps) => {
     const [view, setView] = useState<"list" | "form" | "success">(initialView);
     const [reviews, setReviews] = useState<Review[]>([]);
@@ -48,7 +48,7 @@ const ReviewModal = ({
     const [comment, setComment] = useState("");
     const [submissionError, setSubmissionError] = useState<string | null>(null);
 
-    useEffect(() => {
+    useEffect(() => { // per mostrare
         if (open) {
             setView(initialView);
             if (initialView === "list") {
@@ -61,7 +61,7 @@ const ReviewModal = ({
         }
     }, [open, doctorId, initialView]);
 
-    const loadReviews = async () => {
+    const loadReviews = async () => { //to load id of doctor to show review
         setLoading(true);
         try {
             const data = await fetchDoctorReviews(doctorId);
@@ -95,8 +95,8 @@ const ReviewModal = ({
             });
             // success
             setView("success");
-            setRating(0);
-            setComment("");
+            setRating(0); //dopo successo 
+            setComment(""); // dopo successo
         } catch (err) {
             setSubmissionError("Errore nell'invio della recensione. Riprova.");
         } finally {
